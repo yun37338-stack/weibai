@@ -1,0 +1,60 @@
+name: 自动打包发布
+
+# 当推送 tag（如 v1.0.0）时自动构建并发布 Release
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: 打包为 EXE（Windows 可执行文件）
+        run: |
+          pyinstaller --onefile --name personal-workstation app.py
+
+      - name: 创建发布包
+        run: |
+          mkdir release
+          cp dist/personal-workstation release/
+          cp -r static release/
+          cp -r templates release/ 2>/dev/null || true
+          cp requirements.txt release/
+          cd release && zip -r ../personal-workstation.zip .
+
+      - name: 发布到 GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            personal-workstation.zip
+          body: |
+            ## 个人工作台
+    
+            ### 使用方法
+            1. 下载 `personal-workstation.zip`
+            2. 解压后双击 `personal-workstation.exe`（Windows）
+            3. 浏览器打开 http://localhost:8000
+    
+            ### 功能
+            - 💰 记账管理
+            - 📸 拍照美食记录
+            - 📝 日记本
+            - ✅ 待办清单
+            - 📱 手机也能用（PWA）
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
