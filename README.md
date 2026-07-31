@@ -84,43 +84,41 @@ python app.py
 
 ## 各平台安装方式
 
-### 🚀 一键云端部署（推荐，手机+电脑通用）
+> 每个人自己电脑上运行，数据完全私有，互不可见。
 
-点击下方按钮，免费部署到 Render 云端，获得一个公网链接：
+### 💻 Windows 电脑
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/yun37338-stack/weibai)
+1. 安装 [Python 3.10+](https://www.python.org/downloads/)（安装时勾选"Add Python to PATH"）
+2. [下载代码](https://github.com/yun37338-stack/weibai/archive/refs/heads/main.zip) 并解压
+3. 双击 `启动味白.bat` → 自动安装依赖并启动
+4. 浏览器自动打开，开始使用
 
-> 部署完成后，用手机浏览器打开 Render 提供的链接（`https://xxxx.onrender.com`），会自动弹出"添加到主屏幕"提示，一键安装到手机。
-
-### 💻 电脑端（Windows / Mac / Linux）
+### 💻 Mac 电脑
 
 ```bash
-# 1. 下载代码
+# 下载代码
 git clone https://github.com/yun37338-stack/weibai.git
 cd weibai
 
-# 2. 安装依赖
+# 安装依赖并启动
 pip install -r requirements.txt
-
-# 3. 启动
 python app.py
 
-# 4. 浏览器打开 http://localhost:8000
+# 浏览器打开 http://localhost:8000
 ```
 
-> **Mac 用户**：系统自带 Python 3，直接运行即可。
-> **Windows 用户**：需先安装 [Python 3.10+](https://www.python.org/downloads/)。
+### 📱 手机连接电脑（Android / iOS）
 
-### 📱 手机端（Android / iOS）
+手机不需要安装任何 App，通过局域网访问电脑即可：
 
-**方式一：云端访问（推荐）**
-用 Render 部署后的链接直接访问，Safari/Chrome 弹出安装提示。
-
-**方式二：局域网访问**
-1. 电脑启动服务：`python app.py`
-2. 手机和电脑连同一 WiFi
-3. 手机浏览器打开 `http://<电脑IP>:8000`
-4. Chrome/Safari → "添加到主屏幕"
+1. 电脑上启动味白（双击 bat 或运行 `python app.py`）
+2. 手机和电脑连**同一 WiFi**
+3. 查看电脑 IP 地址：
+   - Windows：打开 CMD 输入 `ipconfig`，找 IPv4 地址
+   - Mac：打开终端输入 `ifconfig`，找 `inet` 地址
+4. 手机浏览器打开 `http://<电脑IP>:8000`
+5. 浏览器菜单 → **"添加到主屏幕"** → 桌面出现味白图标
+6. 之后像原生 App 一样使用，支持离线访问
 
 ---
 
