@@ -343,7 +343,7 @@ svg.icon-lg{width:28px;height:28px}
         <div class="cat-btns" id="catBtns"></div>
         <form id="billForm" onsubmit="addBill(event)">
           <div class="form-row">
-            <div class="form-group"><select id="billType"><option value="expense">支出</option><option value="income">收入</option></select></div>
+            <div class="form-group"><select id="billType" onchange="renderCatBtns();populateCatSelect()"><option value="expense">支出</option><option value="income">收入</option></select></div>
             <div class="form-group"><input type="number" id="billAmount" step="0.01" placeholder="金额 ¥" required></div>
           </div>
           <div class="form-row">
@@ -488,6 +488,7 @@ svg.icon-lg{width:28px;height:28px}
 
 <!-- 添加分类弹窗 -->
 <div class="modal-overlay" id="addCatModal"><div class="modal-box"><h3>添加分类</h3>
+  <div class="form-group"><select id="newCatType"><option value="expense">支出分类</option><option value="income">收入分类</option></select></div>
   <div class="form-group"><input type="text" id="newCatName" placeholder="分类名称（如：宠物）"></div>
   <div class="form-group"><label>分类图标（可选）</label><input type="file" id="newCatIcon" accept="image/*"></div>
   <div class="modal-actions"><button class="btn btn-outline btn-sm" onclick="closeAddCat()">取消</button><button class="btn btn-primary btn-sm" onclick="submitAddCat()">添加</button></div>
@@ -496,7 +497,7 @@ svg.icon-lg{width:28px;height:28px}
 <!-- 编辑账单弹窗 -->
 <div class="modal-overlay" id="editBillModal"><div class="modal-box"><h3>修改账单</h3>
   <div class="form-row">
-    <div class="form-group"><select id="editBillType"><option value="expense">支出</option><option value="income">收入</option></select></div>
+    <div class="form-group"><select id="editBillType" onchange="populateEditCatSelect()"><option value="expense">支出</option><option value="income">收入</option></select></div>
     <div class="form-group"><input type="number" id="editBillAmount" step="0.01" placeholder="金额 ¥" required></div>
   </div>
   <div class="form-row">
@@ -510,10 +511,11 @@ svg.icon-lg{width:28px;height:28px}
 // ==================== 全局 ====================
 let userName='主人',appIcon='🌿',themeColor='#2E8B57',isCustomIcon=false;
 let dashboardData={},currentTab='dashboard',curPlanType='daily',curBillTab='today',editPlanId=null;
-let catIcons={},customCatIcons={},customCategories=[];
-const DEF_CATS=['餐饮','交通','购物','娱乐','住房','医疗','教育','其他'];
-const CAT_DEFAULTS={'餐饮':'🍜','交通':'🚗','购物':'🛍','娱乐':'🎮','住房':'🏠','医疗':'💊','教育':'📚','其他':'📌'};
-const CAT_BG={'餐饮':'#E8F5EC','交通':'#F0F7F4','购物':'#F5FDF8','娱乐':'#EBF5EF','住房':'#E5F2E9','医疗':'#F2E8EB','教育':'#EAF0F5','其他':'#F5F5F5'};
+let catIcons={},customCatIcons={},customCategories={expense:[],income:[]};
+const EXPENSE_CATS=['餐饮','交通','购物','娱乐','住房','医疗','教育','其他'];
+const INCOME_CATS=['工资','生活费','兼职','理财','红包','报销','其他'];
+const CAT_DEFAULTS={'餐饮':'🍜','交通':'🚗','购物':'🛍','娱乐':'🎮','住房':'🏠','医疗':'💊','教育':'📚','工资':'💼','生活费':'💰','兼职':'⌨','理财':'📈','红包':'🧧','报销':'📋','其他':'📌'};
+const CAT_BG={'餐饮':'#E8F5EC','交通':'#F0F7F4','购物':'#F5FDF8','娱乐':'#EBF5EF','住房':'#E5F2E9','医疗':'#F2E8EB','教育':'#EAF0F5','工资':'#E5F0E9','生活费':'#F2EFF5','兼职':'#F5F1E8','理财':'#E8F0F5','红包':'#F5E8EB','报销':'#F0F5E8','其他':'#F5F5F5'};
 const CHART_COLORS=['#2E8B57','#6DB97A','#8FAF98','#A8D5B0','#5B7A6F','#4A8B6F','#C4DCC8','#3A6B4A','#8BB89A','#4C7A5C','#9DC4A8','#B3D8BF'];
 
 async function init(){
@@ -674,31 +676,36 @@ async function togglePlanFromList(id){await fetch('/api/plans/'+id+'/toggle',{me
 async function deletePlan(id){if(!confirm('确认删除？'))return;await fetch('/api/plans/'+id,{method:'DELETE'});loadPlansList();if(currentTab==='dashboard')loadDashboard();}
 
 // ==================== 分类 ====================
+function allCatNames(type){const def=type==='expense'?EXPENSE_CATS:INCOME_CATS;const custom=(customCategories[type]||[]).map(c=>typeof c==='string'?c:c.name);return [...new Set([...def,...custom])];}
 async function loadCategories(){
   try{
     const s=await fetch('/api/settings').then(r=>r.json());
-    customCategories=s.custom_categories?JSON.parse(s.custom_categories):[];
+    const raw=s.custom_categories;
+    if(raw){try{const p=JSON.parse(raw);if(Array.isArray(p)){customCategories={expense:p.filter(x=>!INCOME_CATS.includes(typeof x==='string'?x:x.name)),income:[]};}else{customCategories={expense:p.expense||[],income:p.income||[]};}}catch(e){customCategories={expense:[],income:[]};}}
     const ci=await fetch('/api/settings/cat-icons').then(r=>r.json());customCatIcons=ci||{};
-  }catch(e){customCategories=[];}
+  }catch(e){customCategories={expense:[],income:[]};}
   renderCatBtns();populateCatSelect();
 }
 
 function renderCatBtns(){
-  const allCats=[...DEF_CATS,...customCategories.map(c=>c.name)];
+  const type=document.getElementById('billType').value;
+  const cats=allCatNames(type);
   let html='';
-  for(const cat of allCats){
+  for(const cat of cats){
+    const isDefault=(type==='expense'?EXPENSE_CATS:INCOME_CATS).includes(cat);
     let icon=customCatIcons[cat];
     if(icon)html+=`<div class="cat-btn" onclick="selectCat('${cat}')"><img class="cat-img" src="${icon}">${cat}</div>`;
-    else if(DEF_CATS.includes(cat))html+=`<div class="cat-btn" onclick="selectCat('${cat}')"><span class="cat-emoji">${CAT_DEFAULTS[cat]}</span>${cat}</div>`;
+    else if(isDefault)html+=`<div class="cat-btn" onclick="selectCat('${cat}')"><span class="cat-emoji">${CAT_DEFAULTS[cat]||'📌'}</span>${cat}</div>`;
     else html+=`<div class="cat-btn" onclick="selectCat('${cat}')"><span class="cat-emoji">📌</span>${cat}</div>`;
   }
   document.getElementById('catBtns').innerHTML=html;
 }
 
 function populateCatSelect(){
+  const type=document.getElementById('billType').value;
   const sel=document.getElementById('billCategory');
-  const allCats=[...DEF_CATS,...customCategories.map(c=>c.name)];
-  sel.innerHTML=allCats.map(c=>`<option>${c}</option>`).join('');
+  const cats=allCatNames(type);
+  sel.innerHTML=cats.map(c=>`<option>${c}</option>`).join('');
 }
 
 function applyCatIcons(){
@@ -714,23 +721,28 @@ function selectCat(c){
 
 // 分类管理
 function loadCatManage(){
-  const allCats=[...DEF_CATS,...customCategories.map(c=>c.name)];
   const l=document.getElementById('catManageList');
-  l.innerHTML=allCats.map(cat=>{
-    const icon=customCatIcons[cat];
-    const canDel=!DEF_CATS.includes(cat);
-    let iconHTML=icon?`<img src="${icon}">`:(DEF_CATS.includes(cat)?CAT_DEFAULTS[cat]:'📌');
-    return`<div class="cat-btn" style="position:relative">${iconHTML}<div>${cat}</div>${canDel?`<button class="cat-delete" style="display:flex" onclick="deleteCustomCat('${cat}')">✕</button>`:''}<input type="file" accept="image/*" style="display:none" id="catUpload_${cat}" onchange="uploadCatIcon('${cat}')"><span class="cat-upload" onclick="document.getElementById('catUpload_${cat}').click()">📷</span></div>`;
-  }).join('');
+  let html='';
+  [{type:'expense',label:'支出分类',def:EXPENSE_CATS},{type:'income',label:'收入分类',def:INCOME_CATS}].forEach(col=>{
+    const cats=allCatNames(col.type);
+    html+=`<div style="grid-column:1/-1;font-size:12px;font-weight:700;color:var(--c-primary-dark);margin-top:8px;padding-bottom:4px;border-bottom:1px solid var(--c-border-light)">${col.label}</div>`;
+    cats.forEach(cat=>{
+      const canDel=!col.def.includes(cat);
+      let icon=customCatIcons[cat];
+      let iconHTML=icon?`<img src="${icon}">`:(col.def.includes(cat)?(CAT_DEFAULTS[cat]||'📌'):'📌');
+      html+=`<div class="cat-btn" style="position:relative">${iconHTML}<div>${cat}</div>${canDel?`<button class="cat-delete" style="display:flex" onclick="deleteCustomCat('${col.type}','${cat}')">✕</button>`:''}<input type="file" accept="image/*" style="display:none" id="catUpload_${cat}" onchange="uploadCatIcon('${cat}')"><span class="cat-upload" onclick="document.getElementById('catUpload_${cat}').click()">📷</span></div>`;
+    });
+  });
+  l.innerHTML=html;
 }
 async function uploadCatIcon(cat){
   const f=document.getElementById('catUpload_'+cat).files[0];if(!f)return;
   const fd=new FormData();fd.append('file',f);fd.append('category',cat);
   await fetch('/api/settings/cat-icon/upload',{method:'POST',body:fd});await loadCategories();
 }
-async function deleteCustomCat(cat){
+async function deleteCustomCat(type, cat){
   if(!confirm('删除分类「'+cat+'」？'))return;
-  customCategories=customCategories.filter(c=>c.name!==cat);
+  customCategories[type]=customCategories[type].filter(c=>(typeof c==='string'?c:c.name)!==cat);
   await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_categories:JSON.stringify(customCategories)})});
   loadCatManage();loadCategories();populateCatSelect();
 }
@@ -742,9 +754,10 @@ async function uploadCatIconForNew(cat){
 function showAddCat(){document.getElementById('newCatName').value='';document.getElementById('newCatIcon').value='';document.getElementById('addCatModal').classList.add('open');}
 function closeAddCat(){document.getElementById('addCatModal').classList.remove('open');}
 async function submitAddCat(){
+  const type=document.getElementById('newCatType').value;
   const name=document.getElementById('newCatName').value.trim();if(!name)return;
-  const exists=[...DEF_CATS,...customCategories.map(c=>c.name)].includes(name);if(exists)return alert('分类已存在');
-  customCategories.push({name,icon:null});
+  const exists=allCatNames(type).includes(name);if(exists)return alert('分类已存在');
+  customCategories[type].push({name,icon:null});
   await uploadCatIconForNew(name);
   await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_categories:JSON.stringify(customCategories)})});
   closeAddCat();loadCatManage();loadCategories();populateCatSelect();
@@ -771,8 +784,10 @@ async function deleteBill(id){if(!confirm('确认删除？'))return;await fetch(
 async function deleteBillFromDetail(id,date){if(!confirm('确认删除此账单？'))return;await fetch('/api/bills/'+id,{method:'DELETE'});loadBillSummary();loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
 
 let editBillId=null;
-function openEditBill(id,type,category,amount,note){
-  editBillId=id;document.getElementById('editBillType').value=type;document.getElementById('editBillCategory').innerHTML=[...DEF_CATS,...customCategories.map(c=>c.name)].map(c=>`<option ${c===category?'selected':''}>${c}</option>`).join('');
+function populateEditCatSelect(){const t=document.getElementById('editBillType').value;document.getElementById('editBillCategory').innerHTML=allCatNames(t).map(c=>`<option>${c}</option>`).join('');}
+function openEditBill({id,type,amount,category,note}){
+  editBillId=id;document.getElementById('editBillType').value=type;
+  populateEditCatSelect();document.getElementById('editBillCategory').value=category;
   document.getElementById('editBillAmount').value=amount;document.getElementById('editBillNote').value=note;
   document.getElementById('editBillModal').classList.add('open');
 }
