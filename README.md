@@ -6,34 +6,87 @@
 
 ---
 
-## 🚀 手机端（推荐：一键部署到云端）
+## 各平台使用指南
 
-点击下方按钮免费部署，手机直接用，**不需要电脑一直开着**：
+---
+
+### 📱 手机端（推荐：Render 一键云端部署）
+
+> 部署一次，得到一个公网链接，手机直接打开就能用。**不需要电脑一直开着。**
+
+#### 第一步：一键部署
+
+点击下方按钮，用 GitHub 账号登录 Render（免费）：
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/yun37338-stack/weibai)
 
-部署完成后得到一个链接（如 `https://weibai-xxxx.onrender.com`），手机浏览器打开 → **"添加到主屏幕"** → 桌面出现味白图标。
+等待 2-3 分钟，部署完成后你会得到一个链接，类似：
 
-> **数据隔离**：每个设备首次打开自动生成唯一 ID，A 和 B 的记账数据完全隔离、互不可见。
+```
+https://weibai-xxxx.onrender.com
+```
+
+#### 第二步：手机安装
+
+**Android 手机（Chrome 浏览器）**：
+
+1. 打开 Chrome，访问上面的链接
+2. 底部会自动弹出 **"添加到主屏幕"** 提示
+3. 点击 **"添加"** → 桌面出现「味白」图标
+4. 如果没有弹出提示：点右上角 `⋮` → 添加到主屏幕
+
+**iPhone 手机（Safari 浏览器）**：
+
+1. 打开 Safari，访问上面的链接
+2. 点底部中间 **分享按钮**（方框+箭头图标）
+3. 向下滑动，找到 **"添加到主屏幕"**
+4. 点右上角 **"添加"** → 桌面出现「味白」图标
+
+#### 安装后的体验
+
+- 桌面图标打开 → 全屏运行，和原生 App 一模一样
+- 首次打开后，基础页面支持**离线访问**（没有网络也能打开）
+- **数据隔离**：每个设备自动生成唯一 ID，A 和 B 的数据完全互不可见
+
+> 如果需要更新到最新版：Render 后台点击 "Manual Deploy" → "Clear build cache & deploy" 即可。
+
+---
 
 ### 💻 电脑端（本地运行）
 
+**Windows 用户（最简单）**：
+
+1. [下载代码 ZIP](https://github.com/yun37338-stack/weibai/archive/refs/heads/main.zip) 并解压
+2. 双击 `启动味白.bat` → 自动安装依赖并启动
+3. 浏览器自动打开 `http://localhost:8000`
+
+**Mac / Linux 用户**：
+
 ```bash
-# 1. 安装依赖
+# 1. 下载代码
+git clone https://github.com/yun37338-stack/weibai.git
+cd weibai
+
+# 2. 安装依赖
 pip install -r requirements.txt
 
-# 2. 启动
+# 3. 启动服务
 python app.py
 
-# 3. 打开浏览器
-# http://localhost:8000
+# 4. 浏览器打开 http://localhost:8000
 ```
 
-> **Windows 用户**：直接下载代码，双击 `启动味白.bat` 一键启动。
+**电脑启动后，手机也能连**：
 
-### 📱 手机端（局域网连接电脑）
+1. 确保手机和电脑连同一 WiFi
+2. 查看电脑 IP 地址：
+   - Windows：CMD 输入 `ipconfig`，找"IPv4 地址"
+   - Mac：终端输入 `ifconfig | grep inet`，找 `192.168.x.x`
+3. 手机浏览器访问 `http://<电脑IP>:8000` → 添加到主屏幕
 
-手机和电脑连**同一 WiFi**，手机浏览器访问 `http://<电脑IP>:8000` → 添加到主屏幕。
+> 这种方式的优点是：手机和电脑共享同一份数据，数据都在你的电脑上。
+
+---
 
 ## 功能介绍
 
@@ -88,21 +141,6 @@ python app.py
 | PWA | Service Worker + manifest.json（可安装到手机桌面） |
 | 热搜 | 微博官方接口 `weibo.com/ajax/side/hotSearch` |
 | 每日一句 | Hitokoto.cn API |
-
----
-
-## 手机端安装（云端部署 - 推荐）
-
-1. 点击上方的 **Deploy to Render** 按钮，用 GitHub 登录 Render（免费）
-2. 等待 2-3 分钟自动部署完成
-3. 得到一个公网链接 `https://weibai-xxxx.onrender.com`
-4. **手机浏览器打开这个链接**
-5. **Android Chrome**：弹出"添加到主屏幕" → 点击添加
-6. **iOS Safari**：分享按钮 → "添加到主屏幕"
-7. 桌面出现「味白」图标，像原生 App 一样打开
-
-> 每个设备自动生成唯一 ID，数据完全隔离，A 记账 B 看不到。
-> 已配置 PWA，打开过一次后支持离线访问基础页面。
 
 ---
 
