@@ -681,7 +681,7 @@ async function loadCategories(){
   try{
     const s=await fetch('/api/settings').then(r=>r.json());
     const raw=s.custom_categories;
-    if(raw){try{const p=JSON.parse(raw);if(Array.isArray(p)){customCategories={expense:p.filter(x=>!INCOME_CATS.includes(typeof x==='string'?x:x.name)),income:[]};}else{customCategories={expense:p.expense||[],income:p.income||[]};}}catch(e){customCategories={expense:[],income:[]};}}
+    if(raw){try{const p=JSON.parse(raw);if(Array.isArray(p)){const names=p.map(x=>typeof x==='string'?x:x.name);customCategories={expense:names.filter(n=>!INCOME_CATS.includes(n)),income:names.filter(n=>INCOME_CATS.includes(n))};}else{customCategories={expense:p.expense||[],income:p.income||[]};}}catch(e){customCategories={expense:[],income:[]};}}
     const ci=await fetch('/api/settings/cat-icons').then(r=>r.json());customCatIcons=ci||{};
   }catch(e){customCategories={expense:[],income:[]};}
   renderCatBtns();populateCatSelect();
