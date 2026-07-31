@@ -1,24 +1,22 @@
 {
-  "name": "个人工作台",
-  "short_name": "工作台",
-  "description": "记账 · 日记 · 计划 · 随笔 — 你的个人工作台",
+  "name": "味白 · 个人工作台",
+  "short_name": "味白",
+  "description": "记账 · 计划 · 随笔 · 日记 — 你的个人工作台",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#FFF0F5",
-  "theme_color": "#FF6B9D",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
+  "background_color": "#F5F9F6",
+  "theme_color": "#2E8B57",
   "orientation": "portrait-primary",
+  "lang": "zh-CN",
+  "categories": ["productivity", "finance", "lifestyle"],
+  "shortcuts": [
+    {"name": "记账", "short_name": "记账", "url": "/?tab=accounting", "icons": [{"src": "/static/icon-192.png", "sizes": "192x192"}]},
+    {"name": "计划", "short_name": "计划", "url": "/?tab=plans", "icons": [{"src": "/static/icon-192.png", "sizes": "192x192"}]}
+  ],
   "icons": [
-    {
-      "src": "/static/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/static/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
   ]
 }

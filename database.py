@@ -466,25 +466,40 @@ def get_all_essays(limit: int = 50):
 
 
 # ==================== 记账操作（保留） ====================
-def add_bill(bill_type: str, amount: float, category: str, note: str = "", image_path: str = ""):
+def add_bill(bill_type: str, amount: float, category: str, note: str = "", image_path: str = "", bill_date: str = ""):
     conn = get_db()
-    conn.execute(
-        "INSERT INTO bills (type, amount, category, note, image_path) VALUES (?,?,?,?,?)",
-        (bill_type, amount, category, note, image_path)
-    )
+    if bill_date:
+        conn.execute(
+            "INSERT INTO bills (type, amount, category, note, image_path, created_at) VALUES (?,?,?,?,?,?)",
+            (bill_type, amount, category, note, image_path, bill_date + " 12:00:00")
+        )
+    else:
+        conn.execute(
+            "INSERT INTO bills (type, amount, category, note, image_path) VALUES (?,?,?,?,?)",
+            (bill_type, amount, category, note, image_path)
+        )
     conn.commit()
     conn.close()
 
 
-def get_bills(month: str = ""):
+def get_bills(month: str = "", date_filter: str = ""):
     conn = get_db()
     if month:
         rows = conn.execute(
             "SELECT * FROM bills WHERE strftime('%Y-%m', created_at)=? ORDER BY created_at DESC",
             (month,)
         ).fetchall()
+    elif date_filter:
+        rows = conn.execute(
+            "SELECT * FROM bills WHERE date(created_at)=? ORDER BY created_at DESC",
+            (date_filter,)
+        ).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM bills ORDER BY created_at DESC LIMIT 100").fetchall()
+        today_str = date.today().isoformat()
+        rows = conn.execute(
+            "SELECT * FROM bills WHERE date(created_at)=? ORDER BY created_at DESC",
+            (today_str,)
+        ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -503,45 +518,84 @@ def update_bill(bill_id: int, bill_type: str, category: str, amount: float, note
     conn.close()
 
 
-def get_bill_stats(month: str = ""):
+def get_bills_summary(year: str = "", month: str = ""):
+    """总账/年度总账：前端统一数据格式"""
     conn = get_db()
-    if month:
-        income = conn.execute("SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='income' AND strftime('%Y-%m', created_at)=?", (month,)).fetchone()[0]
-        expense = conn.execute("SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='expense' AND strftime('%Y-%m', created_at)=?", (month,)).fetchone()[0]
-        # 每日趋势
-        daily = conn.execute("""
-            SELECT date(created_at) as d, type, SUM(amount) as total FROM bills
-            WHERE strftime('%Y-%m', created_at)=?
-            GROUP BY d, type ORDER BY d
-        """, (month,)).fetchall()
-    else:
-        income = conn.execute("SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='income'").fetchone()[0]
-        expense = conn.execute("SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='expense'").fetchone()[0]
-        daily = conn.execute("""
-            SELECT date(created_at) as d, type, SUM(amount) as total FROM bills
-            WHERE created_at >= date('now','-30 days')
-            GROUP BY d, type ORDER BY d
-        """).fetchall()
+    total_income = 0
+    total_expense = 0
+    days = []
+    monthly = []
 
-    categories = conn.execute("""
-        SELECT category, SUM(amount) as total FROM bills
-        WHERE type='expense'
-        GROUP BY category ORDER BY total DESC
-    """).fetchall()
+    if year and month:
+        # 选具体月：按天汇总 + 每天账单明细
+        ym = f"{year}-{month}"
+        total_income = conn.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='income' AND strftime('%Y-%m', created_at)=?", (ym,)
+        ).fetchone()[0]
+        total_expense = conn.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='expense' AND strftime('%Y-%m', created_at)=?", (ym,)
+        ).fetchone()[0]
+
+        day_rows = conn.execute("""
+            SELECT date(created_at) as d, type, SUM(amount) as total FROM bills
+            WHERE strftime('%Y-%m', created_at)=? GROUP BY d, type ORDER BY d
+        """, (ym,)).fetchall()
+
+        # 按天整理
+        day_map = {}
+        for r in day_rows:
+            k = r["d"]
+            if k not in day_map:
+                day_map[k] = {"date": k, "expense": 0, "income": 0}
+            day_map[k][r["type"]] = round(r["total"], 2)
+
+        # 补全当月所有天
+        import calendar
+        days_in_month = calendar.monthrange(int(year), int(month))[1]
+        for d in range(1, days_in_month + 1):
+            ds = f"{year}-{month}-{d:02d}"
+            if ds in day_map:
+                day = day_map[ds]
+            else:
+                day = {"date": ds, "expense": 0, "income": 0}
+            # 加载当天账单列表
+            bill_rows = conn.execute(
+                "SELECT * FROM bills WHERE date(created_at)=? ORDER BY created_at DESC", (ds,)
+            ).fetchall()
+            day["bills"] = [dict(r) for r in bill_rows]
+            days.append(day)
+
+    elif year:
+        # 选全年：按月汇总
+        total_income = conn.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='income' AND strftime('%Y', created_at)=?", (year,)
+        ).fetchone()[0]
+        total_expense = conn.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='expense' AND strftime('%Y', created_at)=?", (year,)
+        ).fetchone()[0]
+
+        mon_rows = conn.execute("""
+            SELECT strftime('%m', created_at) as m, type, SUM(amount) as total FROM bills
+            WHERE strftime('%Y', created_at)=? GROUP BY m, type ORDER BY m
+        """, (year,)).fetchall()
+
+        mon_map = {}
+        for r in mon_rows:
+            k = r["m"]
+            if k not in mon_map:
+                mon_map[k] = {"month": k, "expense": 0, "income": 0}
+            mon_map[k][r["type"]] = round(r["total"], 2)
+
+        for i in range(1, 13):
+            m = f"{i:02d}"
+            monthly.append(mon_map.get(m, {"month": m, "expense": 0, "income": 0}))
+
     conn.close()
-
-    # 整理每日趋势数据
-    daily_trend = {}
-    for r in daily:
-        d = r["d"]
-        if d not in daily_trend:
-            daily_trend[d] = {"expense": 0, "income": 0}
-        daily_trend[d][r["type"]] = round(r["total"], 2)
-
     return {
-        "income": income, "expense": expense, "balance": income - expense,
-        "categories": [{"name": r["category"], "total": r["total"]} for r in categories],
-        "daily_trend": [{"date": k, **v} for k, v in sorted(daily_trend.items())]
+        "total_income": total_income,
+        "total_expense": total_expense,
+        "days": days,
+        "monthly": monthly,
     }
 
 

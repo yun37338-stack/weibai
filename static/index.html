@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#2E8B57">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
 <title>味白 · 个人工作台</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -172,15 +175,26 @@ svg.icon-lg{width:28px;height:28px}
 .bill-item .bill-amount{font-size:16px;font-weight:800;white-space:nowrap;margin-left:6px}
 .bill-amount.expense{color:var(--c-danger)}.bill-amount.income{color:var(--c-primary)}
 
-/* ====== 日汇总 ====== */
-.day-summary{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--c-border-light);gap:8px;cursor:pointer;transition:all var(--transition)}
-.day-summary:last-child{border-bottom:none}
-.day-summary:hover{background:var(--c-primary-light);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:8px}
-.day-summary .ds-date{font-size:13px;font-weight:700;color:var(--c-primary-dark);width:42px;flex-shrink:0}
-.day-summary .ds-expense{font-size:13px;color:var(--c-danger);font-weight:600}
-.day-summary .ds-income{font-size:13px;color:var(--c-primary);font-weight:600}
-.day-summary .ds-bar{flex:1;height:6px;background:var(--c-primary-light);border-radius:3px;overflow:hidden}
-.day-summary .ds-bar-fill{height:100%;background:var(--c-danger);border-radius:3px;transition:width .4s}
+/* ====== 日历视图 ====== */
+.cal-header{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;color:var(--c-text-muted);padding:6px 0;font-weight:600}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-cell{aspect-ratio:1;border-radius:8px;padding:3px 4px;cursor:pointer;background:var(--c-surface);border:1px solid var(--c-border-light);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all var(--transition);position:relative;min-height:52px}
+.cal-cell:hover{background:var(--c-primary-light);border-color:var(--c-primary-mid)}
+.cal-cell.empty{background:transparent;border-color:transparent;cursor:default}
+.cal-cell.today{background:var(--c-primary-light);border-color:var(--c-primary);border-width:2px}
+.cal-cell.selected{border-color:var(--c-primary);box-shadow:0 0 0 2px var(--c-primary-mid)}
+.cal-cell .cal-day{font-size:14px;font-weight:700;color:var(--c-text);margin-bottom:1px}
+.cal-cell.has-exp .cal-day{color:var(--c-danger)}
+.cal-cell.has-inc .cal-day{color:var(--c-primary)}
+.cal-cell .cal-exp{font-size:10px;color:var(--c-danger);font-weight:600;line-height:1.2}
+.cal-cell .cal-inc{font-size:10px;color:var(--c-primary);font-weight:600;line-height:1.2}
+.cal-cell .cal-dot{width:4px;height:4px;border-radius:50%;position:absolute;bottom:4px}
+.cal-cell .cal-dot.exp{background:var(--c-danger);right:calc(50% + 3px)}
+.cal-cell .cal-dot.inc{background:var(--c-primary);left:calc(50% + 3px)}
+/* 日历详情弹出 */
+.cal-detail-panel{background:var(--c-surface);border-radius:var(--radius-sm);padding:12px;margin-top:10px;box-shadow:var(--shadow-elevated);border:1px solid var(--c-border);display:none}
+.cal-detail-panel .cal-detail-title{font-size:13px;font-weight:700;color:var(--c-primary-dark);margin-bottom:8px}
+@media(max-width:400px){.cal-cell{min-height:44px;padding:2px}.cal-cell .cal-day{font-size:12px}.cal-cell .cal-exp,.cal-cell .cal-inc{font-size:9px}}
 
 /* ====== 设置 ====== */
 .setting-item{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--c-border-light)}
@@ -217,6 +231,13 @@ svg.icon-lg{width:28px;height:28px}
 /* ====== 年总账卡片 ====== */
 .year-month-card{background:var(--c-surface);border-radius:var(--radius-sm);padding:14px;margin-bottom:6px;box-shadow:var(--shadow-card);border:1px solid var(--c-border-light);transition:box-shadow var(--transition)}
 .year-month-card:hover{box-shadow:var(--shadow-elevated)}
+/* ====== 图表网格 ====== */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.chart-card{background:var(--c-surface);border-radius:var(--radius-sm);padding:12px 8px;text-align:center;box-shadow:var(--shadow-card);border:1px solid var(--c-border-light)}
+.chart-card-title{font-size:12px;font-weight:600;color:var(--c-text-secondary);margin-bottom:8px}
+.chart-card canvas{max-width:100%;height:auto}
+.chart-card .chart-legend{text-align:left;margin-top:6px}
+@media(max-width:400px){.chart-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -257,7 +278,7 @@ svg.icon-lg{width:28px;height:28px}
       </div>
     </div>
     <div class="quote-card"><div class="quote-text" id="quoteText"></div><div class="quote-author" id="quoteAuthor"></div></div>
-    <div class="card"><div class="card-title" style="margin-bottom:8px"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>本周计划</div>
+    <div class="card"><div class="card-title" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><span><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></svg>本周计划</span><button class="btn-icon" onclick="quickAddWeeklyPlan()" title="添加"><svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div>
       <div id="dashWeekPlans"><div class="empty-state">本周还没有周计划</div></div>
     </div>
     <div class="card">
@@ -329,6 +350,7 @@ svg.icon-lg{width:28px;height:28px}
             <div class="form-group"><select id="billCategory"></select></div>
             <div class="form-group"><input type="text" id="billNote" placeholder="备注"></div>
           </div>
+          <div class="form-group"><input type="date" id="billDate" style="width:100%" title="补录当天之前的账，留空默认今天"></div>
           <button type="submit" class="btn btn-primary btn-block" style="padding:10px">保存</button>
         </form>
       </div>
@@ -347,12 +369,29 @@ svg.icon-lg{width:28px;height:28px}
         <div class="stat-item"><div class="label">支出</div><div class="value expense" id="sumExpense">¥0</div></div>
         <div class="stat-item"><div class="label">结余</div><div class="value balance" id="sumBalance">¥0</div></div>
       </div>
-      <div id="daySummaryList" style="margin-bottom:14px"></div>
-      <div id="billChartsArea" style="display:none"><div class="card-title" style="text-align:center;margin-bottom:8px">支出分类占比</div>
-        <canvas id="pieChart" width="280" height="280" style="max-width:100%"></canvas><div class="chart-legend" id="pieLegend"></div>
+      <div class="pill-tabs" style="justify-content:center;margin-bottom:14px">
+        <div class="pill-tab active" data-sumview="chart" onclick="switchSummaryView('chart')">图表概览</div>
+        <div class="pill-tab" data-sumview="detail" onclick="switchSummaryView('detail')">账单详情</div>
       </div>
-      <div id="billTrendArea" style="display:none;margin-bottom:20px"><div class="card-title" style="text-align:center;margin-bottom:8px">每日趋势</div>
-        <canvas id="trendChart" width="340" height="180" style="max-width:100%"></canvas>
+      <!-- 图表视图 -->
+      <div id="summaryChartView">
+        <div class="chart-grid">
+          <div class="chart-card"><div class="chart-card-title">支出分类</div><canvas id="sumPieCanvas" width="200" height="200"></canvas><div class="chart-legend" id="sumPieLegend"></div></div>
+          <div class="chart-card"><div class="chart-card-title">每日对比</div><canvas id="sumBarCanvas" width="280" height="200"></canvas></div>
+          <div class="chart-card"><div class="chart-card-title">收支趋势</div><canvas id="sumLineCanvas" width="280" height="200"></canvas></div>
+          <div class="chart-card"><div class="chart-card-title">分类矩形图</div><canvas id="sumTreeCanvas" width="280" height="220"></canvas></div>
+        </div>
+      </div>
+      <!-- 详情视图 -->
+      <div id="summaryDetailView" style="display:none">
+        <div id="daySummaryList" style="margin-bottom:10px"></div>
+        <div id="calDetailPanel" class="cal-detail-panel"></div>
+        <div id="billChartsArea" style="display:none"><div class="card-title" style="text-align:center;margin-bottom:8px">支出分类占比</div>
+          <canvas id="pieChart" width="280" height="280" style="max-width:100%"></canvas><div class="chart-legend" id="pieLegend"></div>
+        </div>
+        <div id="billTrendArea" style="display:none;margin-bottom:20px"><div class="card-title" style="text-align:center;margin-bottom:8px">每日趋势</div>
+          <canvas id="trendChart" width="340" height="180" style="max-width:100%"></canvas>
+        </div>
       </div>
     </div>
 
@@ -365,7 +404,23 @@ svg.icon-lg{width:28px;height:28px}
         <div class="stat-item"><div class="label">年支出</div><div class="value expense" id="yrExpense">¥0</div></div>
         <div class="stat-item"><div class="label">年结余</div><div class="value balance" id="yrBalance">¥0</div></div>
       </div>
-      <div id="yearSummaryList" style="margin-bottom:20px"></div>
+      <div class="pill-tabs" style="justify-content:center;margin-bottom:14px">
+        <div class="pill-tab active" data-yrview="chart" onclick="switchYearView('chart')">图表概览</div>
+        <div class="pill-tab" data-yrview="detail" onclick="switchYearView('detail')">月度明细</div>
+      </div>
+      <!-- 图表视图 -->
+      <div id="yearChartView">
+        <div class="chart-grid">
+          <div class="chart-card"><div class="chart-card-title">收支趋势</div><canvas id="yrLineCanvas" width="300" height="200"></canvas></div>
+          <div class="chart-card"><div class="chart-card-title">月度对比</div><canvas id="yrBarCanvas" width="300" height="200"></canvas></div>
+          <div class="chart-card"><div class="chart-card-title">月度结余</div><canvas id="yrBalCanvas" width="300" height="200"></canvas></div>
+          <div class="chart-card"><div class="chart-card-title">收支比例</div><canvas id="yrPieCanvas" width="200" height="200"></canvas><div class="chart-legend" id="yrPieLegend"></div></div>
+        </div>
+      </div>
+      <!-- 详情视图 -->
+      <div id="yearDetailView" style="display:none">
+        <div id="yearSummaryList" style="margin-bottom:20px"></div>
+      </div>
     </div>
   </div>
 
@@ -510,6 +565,16 @@ function switchBillTab(sub){curBillTab=sub;document.querySelectorAll('#billPillT
   if(sub==='today')loadTodayBills();
   else if(sub==='summary'){initYearSelector();loadBillSummary();}
   else if(sub==='year'){initYearSelect();loadYearSummary();}}
+let curSummaryView='chart',curYearView='chart';
+function switchSummaryView(mode){curSummaryView=mode;document.querySelectorAll('[data-sumview]').forEach(t=>t.classList.toggle('active',t.getAttribute('data-sumview')===mode));
+  document.getElementById('summaryChartView').style.display=mode==='chart'?'block':'none';
+  document.getElementById('summaryDetailView').style.display=mode==='detail'?'block':'none';
+  if(mode==='chart')loadBillSummary();}
+function goToMonth(year,month){document.getElementById('sumMonth').value=month;document.getElementById('sumYear').value=year;loadBillSummary();}
+function switchYearView(mode){curYearView=mode;document.querySelectorAll('[data-yrview]').forEach(t=>t.classList.toggle('active',t.getAttribute('data-yrview')===mode));
+  document.getElementById('yearChartView').style.display=mode==='chart'?'block':'none';
+  document.getElementById('yearDetailView').style.display=mode==='detail'?'block':'none';
+  if(mode==='chart')loadYearSummary();}
 
 // ==================== 仪表盘 ====================
 async function loadDashboard(){
@@ -525,10 +590,10 @@ async function loadDashboard(){
     if(d.daily_quote){document.getElementById('quoteText').textContent='"'+d.daily_quote[0]+'"';document.getElementById('quoteAuthor').textContent=d.daily_quote[1]||'';}
     renderHotTopics(d.hot_topics);
     const wp=document.getElementById('dashWeekPlans');
-    if(d.weekly_plans&&d.weekly_plans.length)wp.innerHTML=d.weekly_plans.map(p=>renderPlanItem(p,false)).join('');
+    if(d.weekly_plans&&d.weekly_plans.length)wp.innerHTML=d.weekly_plans.map(p=>renderPlanItem(p,true)).join('');
     else wp.innerHTML='<div class="empty-state">本周还没有周计划</div>';
     const lp=document.getElementById('dashLongPlans');
-    if(d.longterm_plans&&d.longterm_plans.length)lp.innerHTML=d.longterm_plans.map(p=>renderPlanItem(p,false)).join('');
+    if(d.longterm_plans&&d.longterm_plans.length)lp.innerHTML=d.longterm_plans.map(p=>renderPlanItem(p,true)).join('');
     else lp.innerHTML='<div class="empty-state">还没有长期计划</div>';
   }catch(e){console.error(e)}
 }
@@ -575,6 +640,7 @@ async function loadEssayHistory(){const data=await fetch('/api/essays').then(r=>
 // ==================== 快捷计划 ====================
 let qpType='daily';
 function quickAddPlan(){qpType='daily';document.getElementById('modalTitle').textContent='添加今日计划';document.getElementById('quickPlanContent').value='';document.getElementById('quickPlanModal').classList.add('open');}
+function quickAddWeeklyPlan(){qpType='weekly';document.getElementById('modalTitle').textContent='添加周计划';document.getElementById('quickPlanContent').value='';document.getElementById('quickPlanModal').classList.add('open');}
 function quickAddLongtermPlan(){qpType='longterm';document.getElementById('modalTitle').textContent='添加长期计划';document.getElementById('quickPlanContent').value='';document.getElementById('quickPlanModal').classList.add('open');}
 function closeQuickPlan(){document.getElementById('quickPlanModal').classList.remove('open');}
 async function submitQuickPlan(){const c=document.getElementById('quickPlanContent').value.trim();if(!c)return;
@@ -688,9 +754,10 @@ async function submitAddCat(){
 async function addBill(e){e.preventDefault();
   const type=document.getElementById('billType').value,category=document.getElementById('billCategory').value;
   const amount=parseFloat(document.getElementById('billAmount').value),note=document.getElementById('billNote').value;
+  const billDate=document.getElementById('billDate').value;
   if(isNaN(amount)||amount<=0)return;
-  await fetch('/api/bills/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,category,amount,note})});
-  document.getElementById('billAmount').value='';document.getElementById('billNote').value='';loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
+  await fetch('/api/bills/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,category,amount,note,bill_date:billDate})});
+  document.getElementById('billAmount').value='';document.getElementById('billNote').value='';document.getElementById('billDate').value='';loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
 async function loadTodayBills(){
   const b=await fetch('/api/bills').then(r=>r.json());const l=document.getElementById('todayBillList');
   if(!b.length){l.innerHTML='<div class="empty-state">今天还没有账单</div>';return;}
@@ -701,6 +768,7 @@ async function loadTodayBills(){
   }).join('');
 }
 async function deleteBill(id){if(!confirm('确认删除？'))return;await fetch('/api/bills/'+id,{method:'DELETE'});loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
+async function deleteBillFromDetail(id,date){if(!confirm('确认删除此账单？'))return;await fetch('/api/bills/'+id,{method:'DELETE'});loadBillSummary();loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
 
 let editBillId=null;
 function openEditBill(id,type,category,amount,note){
@@ -729,27 +797,69 @@ async function loadBillSummary(){
   document.getElementById('sumIncome').textContent='¥'+(d.total_income||0).toFixed(2);
   document.getElementById('sumExpense').textContent='¥'+(d.total_expense||0).toFixed(2);
   document.getElementById('sumBalance').textContent='¥'+((d.total_income||0)-(d.total_expense||0)).toFixed(2);
+  // 详情视图：选月时渲染日历，全年时渲染月卡片
   const l=document.getElementById('daySummaryList');
-  if(!d.days||!d.days.length){l.innerHTML='';return;}
-  const maxE=Math.max(...d.days.map(dd=>dd.expense||0),1);
-  l.innerHTML=d.days.map(dd=>{
-    const w=pct(dd.expense||0,maxE);
-    return`<div class="day-summary" onclick="toggleDayDetail(this,'${dd.date}')"><span class="ds-date">${dd.date.slice(8)}日</span><span class="ds-expense">${(dd.expense||0)>0?'-¥'+dd.expense.toFixed(2):''}</span><span class="ds-income">${(dd.income||0)>0?'+¥'+dd.income.toFixed(2):''}</span><div class="ds-bar"><div class="ds-bar-fill" style="width:${w}%"></div></div></div><div class="day-detail" style="display:none"></div>`;
-  }).join('');
+  document.getElementById('calDetailPanel').style.display='none';
+  if(d.days&&d.days.length&&month){
+    // 日历视图
+    const y=parseInt(year),m=parseInt(month);
+    const firstDay=new Date(y,m-1,1).getDay(); // 0=周日
+    const daysInMonth=new Date(y,m,0).getDate();
+    const todayStr=new Date().toISOString().slice(0,10);
+    // 构建 day map
+    const dayMap={};d.days.forEach(dd=>{dayMap[dd.date]=dd;});
+    // 星期头
+    let cal=`<div class="cal-header">${['日','一','二','三','四','五','六'].map(w=>`<span>${w}</span>`).join('')}</div><div class="cal-grid">`;
+    // 前置空白
+    for(let i=0;i<firstDay;i++)cal+=`<div class="cal-cell empty"></div>`;
+    // 每一天
+    for(let day=1;day<=daysInMonth;day++){
+      const ds=`${year}-${month}-${String(day).padStart(2,'0')}`;
+      const dd=dayMap[ds]||{expense:0,income:0};
+      const hasExp=dd.expense>0,hasInc=dd.income>0;
+      const cls=['cal-cell'];
+      if(ds===todayStr)cls.push('today');
+      if(hasExp)cls.push('has-exp');
+      else if(hasInc)cls.push('has-inc');
+      cal+=`<div class="${cls.join(' ')}" onclick="toggleCalDay(this,'${ds}')"><span class="cal-day">${day}</span>${hasExp?`<span class="cal-exp">出¥${dd.expense.toFixed(0)}</span>`:''}${hasInc?`<span class="cal-inc">入¥${dd.income.toFixed(0)}</span>`:''}</div>`;
+    }
+    cal+='</div>';
+    l.innerHTML=cal;
+  }else if(d.monthly&&d.monthly.length){
+    // 全年：月卡片
+    const maxE=Math.max(...d.monthly.map(m=>m.expense||0),1);
+    l.innerHTML=d.monthly.map(m=>{
+      const e=m.expense||0,i=m.income||0,b=i-e;
+      return`<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--c-border-light);gap:8px;cursor:pointer" onclick="goToMonth('${year}','${m.month}')"><span style="font-size:13px;font-weight:700;color:var(--c-primary-dark);width:42px;flex-shrink:0">${parseInt(m.month)}月</span><span style="font-size:13px;color:var(--c-danger);font-weight:600">${e>0?'-¥'+e.toFixed(2):''}</span><span style="font-size:13px;color:var(--c-primary);font-weight:600">${i>0?'+¥'+i.toFixed(2):''}</span><span style="font-size:11px;color:${b>=0?'var(--c-primary)':'var(--c-danger)'};margin-left:auto">${b>=0?'+':'−'}¥${Math.abs(b).toFixed(2)}</span><div style="flex:1;max-width:80px;height:6px;background:var(--c-primary-light);border-radius:3px;overflow:hidden"><div style="height:100%;background:var(--c-danger);border-radius:3px;width:${pct(e,maxE)}%"></div></div></div>`;
+    }).join('');
+  }else{l.innerHTML='';}
+  // 图表视图：渲染4种图表
+  if(curSummaryView==='chart'){renderSummaryCharts(d,month);}
+  // 详情视图的旧图表
   if(!month){renderMonthlyChart(d.monthly);hideCharts();}else{renderDayCharts(d);hideMonthlyChart();}
 }
-async function toggleDayDetail(el,date){
-  const detailDiv=el.nextElementSibling;
-  if(detailDiv.style.display==='block'){detailDiv.style.display='none';return;}
+
+let selectedCalDate=null;
+async function toggleCalDay(el,date){
+  const panel=document.getElementById('calDetailPanel');
+  // 点击同一天则折叠
+  if(selectedCalDate===date&&panel.style.display==='block'){selectedCalDate=null;panel.style.display='none';document.querySelectorAll('.cal-cell.selected').forEach(c=>c.classList.remove('selected'));return;}
+  // 选中新日期
+  selectedCalDate=date;
+  document.querySelectorAll('.cal-cell.selected').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
   const parts=date.split('-');
   const bills=await fetch(`/api/bills?date=${parts[0]}-${parts[1]}-${parts[2]}`).then(r=>r.json());
-  detailDiv.innerHTML=bills.length?bills.map(b=>{
+  panel.innerHTML=bills.length?`<div class="cal-detail-title">${date.slice(5)} 账单明细</div>`+bills.map(b=>{
     const icon=customCatIcons[b.category];const emoji=CAT_DEFAULTS[b.category]||'📌';
     const bg=CAT_BG[b.category]||'#F5F5F5';
-    return`<div class="bill-item" style="padding-left:24px"><div class="bill-icon" style="background:${bg};width:30px;height:30px;font-size:14px">${icon?`<img src="${icon}" style="width:18px;height:18px;border-radius:3px;object-fit:cover">`:emoji}</div><div class="bill-info"><div class="bill-title">${esc(b.category)}${b.note?' · '+esc(b.note):''}</div></div><div class="bill-amount ${b.type}">${b.type==='income'?'+':'-'}¥${parseFloat(b.amount).toFixed(2)}</div></div>`;
+    return`<div class="bill-item" style="padding:6px 0"><div class="bill-icon" style="background:${bg};width:28px;height:28px;font-size:13px">${icon?`<img src="${icon}" style="width:16px;height:16px;border-radius:3px;object-fit:cover">`:emoji}</div><div class="bill-info"><div class="bill-title">${esc(b.category)}${b.note?' · '+esc(b.note):''}</div></div><div class="bill-amount ${b.type}">${b.type==='income'?'+':'-'}¥${parseFloat(b.amount).toFixed(2)}<button class="btn-sm danger" style="margin-left:6px;font-size:11px;padding:2px 8px" onclick="event.stopPropagation();deleteCalBill(${b.id},'${date}')">删除</button></div></div>`;
   }).join(''):'<div class="empty-state" style="padding:8px">该日无账单</div>';
-  detailDiv.style.display='block';
+  panel.style.display='block';
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
+
+async function deleteCalBill(id,date){if(!confirm('确认删除此账单？'))return;await fetch('/api/bills/'+id,{method:'DELETE'});loadBillSummary();loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
 function hideCharts(){document.getElementById('billChartsArea').style.display='none';document.getElementById('billTrendArea').style.display='none';}
 function hideMonthlyChart(){}
 
@@ -820,6 +930,119 @@ function drawBarChart(monthly){
   });
 }
 
+// ==================== 总账图表视图（4种图表） ====================
+function renderSummaryCharts(d,month){
+  // 1. 饼图 — 支出分类占比
+  const cats={};d.days&&d.days.forEach(dd=>{(dd.bills||[]).forEach(b=>{if(b.type==='expense')cats[b.category]=(cats[b.category]||0)+b.amount;})});
+  const entries=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  drawSumPie(entries);
+  // 2. 柱状图 — 每日/每月收支对比
+  if(d.days&&d.days.length){
+    const barData=d.days.map(dd=>{let e=0,i=0;(dd.bills||[]).forEach(b=>{if(b.type==='expense')e+=b.amount;else i+=b.amount});return{label:dd.date.slice(8)+'日',expense:e,income:i};});
+    drawSumBars(barData,'sumBarCanvas');
+    const lineData=d.days.map(dd=>{let e=0,i=0;(dd.bills||[]).forEach(b=>{if(b.type==='expense')e+=b.amount;else i+=b.amount});return{label:dd.date.slice(5),expense:e,income:i};});
+    drawSumLine(lineData,'sumLineCanvas');
+  }else if(d.monthly&&d.monthly.length){
+    const barData=d.monthly.map(m=>({label:parseInt(m.month)+'月',expense:m.expense||0,income:m.income||0}));
+    drawSumBars(barData,'sumBarCanvas');
+    drawSumLine(barData,'sumLineCanvas');
+  }
+  // 3. 树状图 — 分类比例
+  drawSumTree(entries);
+}
+
+function drawSumPie(entries){
+  const canvas=document.getElementById('sumPieCanvas'),ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,r=Math.min(cx,cy)-8;
+  const total=entries.reduce((s,e)=>s+e[1],0)||1;
+  ctx.clearRect(0,0,W,H);
+  let angle=-Math.PI/2;
+  entries.forEach((e,i)=>{const a=(e[1]/total)*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,angle,angle+a);ctx.fillStyle=CHART_COLORS[i%CHART_COLORS.length];ctx.fill();angle+=a;});
+  const legend=document.getElementById('sumPieLegend');
+  legend.innerHTML=entries.slice(0,5).map((e,i)=>`<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span>${e[0]}: ¥${e[1].toFixed(0)}</div>`).join('');
+}
+
+function drawSumBars(data,canvasId){
+  const canvas=document.getElementById(canvasId),ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height,pad={top:12,right:12,bottom:24,left:38},w=W-pad.left-pad.right,h=H-pad.top-pad.bottom;
+  const maxVal=Math.max(1,...data.map(d=>Math.max(d.expense||0,d.income||0)));
+  ctx.clearRect(0,0,W,H);
+  ctx.font='9px sans-serif';ctx.fillStyle='#8FAF98';ctx.textAlign='right';
+  for(let i=0;i<=2;i++){const v=Math.round(maxVal*i/2),y=pad.top+h-(v/maxVal*h);ctx.fillText(v,pad.left-4,y+3);ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.strokeStyle='#E8F5EC';ctx.stroke();}
+  const barW=Math.max(4,Math.min(16,(w/(data.length*2.8))));
+  data.forEach((d,i)=>{
+    const x=pad.left+i*(w/data.length)+barW*0.8;
+    ctx.fillStyle='rgba(230,120,120,.7)';const eh=(d.expense||0)/maxVal*h;if(eh>0)ctx.fillRect(x-barW/2,pad.top+h-eh,barW,eh);
+    ctx.fillStyle='rgba(109,185,122,.7)';const ih=(d.income||0)/maxVal*h;if(ih>0)ctx.fillRect(x+barW/2,pad.top+h-ih,barW,ih);
+    ctx.fillStyle='#8FAF98';ctx.textAlign='center';ctx.fillText(d.label,barW+x,pad.top+h+14);
+  });
+}
+
+function drawSumLine(data,canvasId){
+  const canvas=document.getElementById(canvasId),ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height,pad={top:12,right:16,bottom:24,left:38},w=W-pad.left-pad.right,h=H-pad.top-pad.bottom;
+  const maxVal=Math.max(1,...data.map(d=>Math.max(d.expense||0,d.income||0)));
+  ctx.clearRect(0,0,W,H);
+  ctx.font='9px sans-serif';ctx.fillStyle='#8FAF98';ctx.textAlign='right';
+  for(let i=0;i<=2;i++){const v=Math.round(maxVal*i/2),y=pad.top+h-(v/maxVal*h);ctx.fillText(v,pad.left-4,y+3);ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.strokeStyle='#E8F5EC';ctx.stroke();}
+  // Labels & points
+  if(!data.length)return;
+  const step=w/(data.length-1||1);
+  // Draw expense line (red)
+  ctx.beginPath();ctx.strokeStyle='rgba(230,120,120,.9)';ctx.lineWidth=2;
+  data.forEach((d,i)=>{const x=pad.left+i*step,y=pad.top+h-((d.expense||0)/maxVal*h);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+  // Draw income line (green)
+  ctx.beginPath();ctx.strokeStyle='rgba(109,185,122,.9)';ctx.lineWidth=2;
+  data.forEach((d,i)=>{const x=pad.left+i*step,y=pad.top+h-((d.income||0)/maxVal*h);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+  // Dots & labels
+  data.forEach((d,i)=>{
+    const x=pad.left+i*step;
+    ctx.fillStyle='rgba(230,120,120,.9)';ctx.beginPath();ctx.arc(x,pad.top+h-((d.expense||0)/maxVal*h),3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(109,185,122,.9)';ctx.beginPath();ctx.arc(x,pad.top+h-((d.income||0)/maxVal*h),3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#8FAF98';ctx.textAlign='center';
+    if(data.length<=31||i%Math.ceil(data.length/8)===0)ctx.fillText(d.label,x,pad.top+h+14);
+  });
+}
+
+function drawSumTree(entries){
+  const canvas=document.getElementById('sumTreeCanvas'),ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height,pad=4;
+  const total=entries.reduce((s,e)=>s+e[1],0)||1;
+  if(!entries.length){ctx.clearRect(0,0,W,H);return;}
+  ctx.clearRect(0,0,W,H);
+  // Treemap layout: simple slice-and-dice
+  const colors=[...CHART_COLORS];for(let i=colors.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[colors[i],colors[j]]=[colors[j],colors[i]];}
+  let layout=[{x:pad,y:pad,w:W-pad*2,h:H-pad*2}];
+  const sorted=entries.map((e,i)=>({...e,idx:i})).sort((a,b)=>b[1]-a[1]);
+  const result=[];
+  sorted.forEach((e,i)=>{
+    // Find best rectangle to split
+    let best=layout[0],bestIdx=0;
+    layout.forEach((r,j)=>{if(r.w*r.h>best.w*best.h){best=r;bestIdx=j;}});
+    const ratio=e[1]/total,area=best.w*best.h*ratio;
+    if(best.w>best.h){
+      const splitW=Math.max(30,area/best.h);
+      result.push({x:best.x,y:best.y,w:splitW,h:best.h,label:e[0],val:e[1],color:colors[i%colors.length]});
+      best.x+=splitW;best.w-=splitW;
+    }else{
+      const splitH=Math.max(30,area/best.w);
+      result.push({x:best.x,y:best.y,w:best.w,h:splitH,label:e[0],val:e[1],color:colors[i%colors.length]});
+      best.y+=splitH;best.h-=splitH;
+    }
+    if(best.w<20||best.h<20)layout.splice(bestIdx,1);
+  });
+  result.forEach(r=>{
+    ctx.fillStyle=r.color;ctx.fillRect(r.x,r.y,r.w,r.h);
+    ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.strokeRect(r.x,r.y,r.w,r.h);
+    if(r.w>35&&r.h>16){
+      ctx.fillStyle='#fff';ctx.font='bold 10px "Noto Sans SC",sans-serif';ctx.textAlign='center';
+      ctx.fillText(r.label,r.x+r.w/2,r.y+r.h/2-1);
+      ctx.font='9px "Noto Sans SC",sans-serif';
+      ctx.fillText('¥'+r.val.toFixed(0),r.x+r.w/2,r.y+r.h/2+12);
+    }
+  });
+}
+
 // ==================== 年度总账 ====================
 function initYearSelect(){const y=new Date().getFullYear(),s=document.getElementById('yearYear');s.innerHTML='';for(let i=y;i>=y-4;i--)s.innerHTML+=`<option value="${i}">${i}年</option>`;s.value=y;loadYearSummary();}
 async function loadYearSummary(){
@@ -828,13 +1051,105 @@ async function loadYearSummary(){
   document.getElementById('yrIncome').textContent='¥'+(d.total_income||0).toFixed(2);
   document.getElementById('yrExpense').textContent='¥'+(d.total_expense||0).toFixed(2);
   document.getElementById('yrBalance').textContent='¥'+((d.total_income||0)-(d.total_expense||0)).toFixed(2);
+  // 详情视图
   const l=document.getElementById('yearSummaryList');
-  if(!d.monthly||!d.monthly.length){l.innerHTML='';return;}
-  const maxE=Math.max(1,...d.monthly.map(m=>m.expense||0));
-  l.innerHTML=d.monthly.map(m=>{
-    const e=m.expense||0,i=m.income||0,b=i-e;
-    return`<div class="year-month-card"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-weight:700">${String(d.monthly.indexOf(m)+1)}月</span><div><span style="color:var(--c-danger);font-weight:600;margin-right:12px">-¥${e.toFixed(2)}</span><span style="color:var(--c-primary);font-weight:600">+¥${i.toFixed(2)}</span></div></div><div style="background:var(--c-primary-light);border-radius:4px;height:6px"><div style="background:var(--c-danger);height:100%;border-radius:4px;width:${pct(e,maxE)}%"></div></div><div style="font-size:12px;color:${b>=0?'var(--c-primary)':'var(--c-danger)'};margin-top:4px;font-weight:600">结余: ¥${b.toFixed(2)}</div></div>`;
-  }).join('');
+  if(d.monthly&&d.monthly.length){
+    const maxE=Math.max(1,...d.monthly.map(m=>m.expense||0));
+    l.innerHTML=d.monthly.map(m=>{
+      const e=m.expense||0,i=m.income||0,b=i-e;
+      return`<div class="year-month-card"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-weight:700">${parseInt(m.month)}月</span><div><span style="color:var(--c-danger);font-weight:600;margin-right:12px">-¥${e.toFixed(2)}</span><span style="color:var(--c-primary);font-weight:600">+¥${i.toFixed(2)}</span></div></div><div style="background:var(--c-primary-light);border-radius:4px;height:6px"><div style="background:var(--c-danger);height:100%;border-radius:4px;width:${pct(e,maxE)}%"></div></div><div style="font-size:12px;color:${b>=0?'var(--c-primary)':'var(--c-danger)'};margin-top:4px;font-weight:600">结余: ¥${b.toFixed(2)}</div></div>`;
+    }).join('');}else{l.innerHTML='';}
+  // 图表视图
+  if(curYearView==='chart')renderYearCharts(d);
+}
+
+function renderYearCharts(d){
+  const monthly=d.monthly||[];
+  if(!monthly.length)return;
+  // 1. 折线图 — 收支趋势
+  const lineData=monthly.map(m=>({label:parseInt(m.month)+'月',expense:m.expense||0,income:m.income||0}));
+  drawYearLine(lineData);
+  // 2. 柱状图 — 月度对比
+  drawYearBars(lineData);
+  // 3. 月度结余
+  drawYearBalance(lineData);
+  // 4. 饼图 — 收支比例
+  const totalExp=monthly.reduce((s,m)=>s+(m.expense||0),0);
+  const totalInc=monthly.reduce((s,m)=>s+(m.income||0),0);
+  drawYearPie(totalInc,totalExp);
+}
+
+function drawYearLine(data){
+  const canvas=document.getElementById('yrLineCanvas'),ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height,pad={top:12,right:16,bottom:24,left:42},w=W-pad.left-pad.right,h=H-pad.top-pad.bottom;
+  const maxVal=Math.max(1,...data.map(d=>Math.max(d.expense||0,d.income||0)));
+  ctx.clearRect(0,0,W,H);
+  ctx.font='9px sans-serif';ctx.fillStyle='#8FAF98';ctx.textAlign='right';
+  for(let i=0;i<=2;i++){const v=Math.round(maxVal*i/2),y=pad.top+h-(v/maxVal*h);ctx.fillText(v,pad.left-4,y+3);ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.strokeStyle='#E8F5EC';ctx.stroke();}
+  const step=w/(data.length-1||1);
+  // expense line
+  ctx.beginPath();ctx.strokeStyle='rgba(230,120,120,.9)';ctx.lineWidth=2;
+  data.forEach((d,i)=>{const x=pad.left+i*step,y=pad.top+h-((d.expense||0)/maxVal*h);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+  // income line
+  ctx.beginPath();ctx.strokeStyle='rgba(109,185,122,.9)';ctx.lineWidth=2;
+  data.forEach((d,i)=>{const x=pad.left+i*step,y=pad.top+h-((d.income||0)/maxVal*h);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+  // dots & labels
+  data.forEach((d,i)=>{
+    const x=pad.left+i*step;
+    ctx.fillStyle='rgba(230,120,120,.9)';ctx.beginPath();ctx.arc(x,pad.top+h-((d.expense||0)/maxVal*h),3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(109,185,122,.9)';ctx.beginPath();ctx.arc(x,pad.top+h-((d.income||0)/maxVal*h),3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#8FAF98';ctx.textAlign='center';ctx.fillText(d.label,x,pad.top+h+14);
+  });
+}
+
+function drawYearBars(data){
+  const canvas=document.getElementById('yrBarCanvas'),ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height,pad={top:12,right:12,bottom:24,left:42},w=W-pad.left-pad.right,h=H-pad.top-pad.bottom;
+  const maxVal=Math.max(1,...data.map(d=>Math.max(d.expense||0,d.income||0)));
+  ctx.clearRect(0,0,W,H);
+  ctx.font='9px sans-serif';ctx.fillStyle='#8FAF98';ctx.textAlign='right';
+  for(let i=0;i<=2;i++){const v=Math.round(maxVal*i/2),y=pad.top+h-(v/maxVal*h);ctx.fillText(v,pad.left-4,y+3);ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.strokeStyle='#E8F5EC';ctx.stroke();}
+  const barW=Math.max(4,Math.min(18,(w/(data.length*2.8))));
+  data.forEach((d,i)=>{
+    const x=pad.left+i*(w/data.length)+barW*0.8;
+    ctx.fillStyle='rgba(230,120,120,.7)';const eh=(d.expense||0)/maxVal*h;if(eh>0)ctx.fillRect(x-barW/2,pad.top+h-eh,barW,eh);
+    ctx.fillStyle='rgba(109,185,122,.7)';const ih=(d.income||0)/maxVal*h;if(ih>0)ctx.fillRect(x+barW/2,pad.top+h-ih,barW,ih);
+    ctx.fillStyle='#8FAF98';ctx.textAlign='center';ctx.fillText(d.label,barW+x,pad.top+h+14);
+  });
+}
+
+function drawYearBalance(data){
+  const canvas=document.getElementById('yrBalCanvas'),ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height,pad={top:12,right:16,bottom:24,left:42},w=W-pad.left-pad.right,h=H-pad.top-pad.bottom;
+  const balances=data.map(d=>(d.income||0)-(d.expense||0));
+  const maxVal=Math.max(1,...balances.map(Math.abs),0);
+  ctx.clearRect(0,0,W,H);
+  ctx.font='9px sans-serif';ctx.fillStyle='#8FAF98';ctx.textAlign='right';
+  for(let i=-2;i<=2;i++){const v=Math.round(maxVal*i/2),y=pad.top+h/2-(v/maxVal*(h/2));ctx.fillText(v,pad.left-4,y+3);ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.strokeStyle='#E8F5EC';ctx.stroke();}
+  // zero line
+  ctx.beginPath();ctx.strokeStyle='rgba(0,0,0,.15)';ctx.lineWidth=1;ctx.moveTo(pad.left,pad.top+h/2);ctx.lineTo(W-pad.right,pad.top+h/2);ctx.stroke();
+  const barW=Math.max(6,Math.min(22,(w/(data.length*1.8))));
+  data.forEach((d,i)=>{
+    const x=pad.left+i*(w/data.length)+barW/2;
+    const bal=(d.income||0)-(d.expense||0);
+    const barH=Math.abs(bal)/maxVal*(h/2);
+    ctx.fillStyle=bal>=0?'rgba(109,185,122,.8)':'rgba(230,120,120,.8)';
+    ctx.fillRect(x-barW/2,pad.top+h/2-(bal>=0?barH:0),barW,Math.max(1,barH));
+    ctx.fillStyle='#8FAF98';ctx.textAlign='center';ctx.fillText(d.label,x,pad.top+h+14);
+  });
+}
+
+function drawYearPie(totalInc,totalExp){
+  const canvas=document.getElementById('yrPieCanvas'),ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,r=Math.min(cx,cy)-8;
+  const total=totalInc+totalExp||1;
+  ctx.clearRect(0,0,W,H);
+  // income (green)
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+(totalInc/total)*Math.PI*2);ctx.fillStyle='rgba(109,185,122,.8)';ctx.fill();
+  // expense (red)
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,-Math.PI/2+(totalInc/total)*Math.PI*2,-Math.PI/2+Math.PI*2);ctx.fillStyle='rgba(230,120,120,.8)';ctx.fill();
+  const legend=document.getElementById('yrPieLegend');
+  legend.innerHTML=`<div class="chart-legend-item"><span class="chart-legend-dot" style="background:rgba(109,185,122,.8)"></span>收入: ¥${totalInc.toFixed(0)} (${total?((totalInc/total)*100).toFixed(0):0}%)</div><div class="chart-legend-item"><span class="chart-legend-dot" style="background:rgba(230,120,120,.8)"></span>支出: ¥${totalExp.toFixed(0)} (${total?((totalExp/total)*100).toFixed(0):0}%)</div>`;
 }
 
 // ==================== 设置 ====================
@@ -865,6 +1180,15 @@ function pct(v,max){return max?Math.min(100,Math.round(v/max*100)):0;}
 
 // ==================== 初始化 ====================
 init();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+    console.log('SW registered', reg.scope);
+  }).catch(function(err) {
+    console.log('SW failed', err);
+  });
+}
 </script>
 </body>
 </html>

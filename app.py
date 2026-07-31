@@ -33,6 +33,19 @@ def home():
         return f.read()
 
 
+@app.get("/sw.js")
+def service_worker():
+    from fastapi.responses import Response
+    with open("static/sw.js", encoding="utf-8") as f:
+        return Response(content=f.read(), media_type="application/javascript")
+
+
+@app.get("/favicon.ico")
+def favicon():
+    from fastapi.responses import FileResponse
+    return FileResponse("static/favicon.png")
+
+
 # ==================== 设置 ====================
 
 @app.get("/api/settings")
@@ -215,13 +228,14 @@ async def bills_add(request: Request):
         amount=float(data["amount"]),
         category=data.get("category", "其他"),
         note=data.get("note", ""),
+        bill_date=data.get("bill_date", ""),
     )
     return {"ok": True}
 
 
 @app.get("/api/bills")
-def bills_list(month: str = ""):
-    return database.get_bills(month)
+def bills_list(month: str = "", date: str = ""):
+    return database.get_bills(month=month, date_filter=date)
 
 
 @app.delete("/api/bills/{bill_id}")
@@ -235,6 +249,11 @@ async def bills_update(bill_id: int, request: Request):
     data = await request.json()
     database.update_bill(bill_id, data.get("type"), data.get("category"), float(data.get("amount", 0)), data.get("note"))
     return {"ok": True}
+
+
+@app.get("/api/bills/summary")
+def bills_summary(year: str = "", month: str = ""):
+    return database.get_bills_summary(year, month)
 
 
 @app.get("/api/bills/stats")
