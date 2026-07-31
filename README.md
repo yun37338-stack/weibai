@@ -82,15 +82,45 @@ python app.py
 
 ---
 
-## 手机端安装（PWA）
+## 各平台安装方式
 
-1. 确保手机和电脑在**同一 WiFi** 网络下
-2. 手机浏览器打开 `http://<电脑IP>:8000`
-3. **Android Chrome**：弹出"添加到主屏幕"横幅 → 点击添加
-4. **iOS Safari**：点击分享按钮 → "添加到主屏幕"
-5. 主屏幕上会出现「味白」图标，像原生 App 一样打开
+### 🚀 一键云端部署（推荐，手机+电脑通用）
 
-> 已配置 Service Worker，打开过一次后支持**离线访问**基础页面。
+点击下方按钮，免费部署到 Render 云端，获得一个公网链接：
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/yun37338-stack/weibai)
+
+> 部署完成后，用手机浏览器打开 Render 提供的链接（`https://xxxx.onrender.com`），会自动弹出"添加到主屏幕"提示，一键安装到手机。
+
+### 💻 电脑端（Windows / Mac / Linux）
+
+```bash
+# 1. 下载代码
+git clone https://github.com/yun37338-stack/weibai.git
+cd weibai
+
+# 2. 安装依赖
+pip install -r requirements.txt
+
+# 3. 启动
+python app.py
+
+# 4. 浏览器打开 http://localhost:8000
+```
+
+> **Mac 用户**：系统自带 Python 3，直接运行即可。
+> **Windows 用户**：需先安装 [Python 3.10+](https://www.python.org/downloads/)。
+
+### 📱 手机端（Android / iOS）
+
+**方式一：云端访问（推荐）**
+用 Render 部署后的链接直接访问，Safari/Chrome 弹出安装提示。
+
+**方式二：局域网访问**
+1. 电脑启动服务：`python app.py`
+2. 手机和电脑连同一 WiFi
+3. 手机浏览器打开 `http://<电脑IP>:8000`
+4. Chrome/Safari → "添加到主屏幕"
 
 ---
 
