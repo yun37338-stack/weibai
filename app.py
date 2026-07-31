@@ -6,10 +6,16 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, UploadFile, File, Form, Request
+from fastapi import FastAPI, UploadFile, File, Form, Request, Header
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from typing import Optional
 import database
+
+
+def get_device_id(x_device_id: Optional[str] = Header(None)) -> str:
+    """从请求头提取设备ID，用于数据隔离"""
+    return x_device_id or "legacy"
 
 
 @asynccontextmanager
@@ -105,8 +111,8 @@ async def upload_icon(image: UploadFile = File(...)):
 # ==================== 仪表盘数据 ====================
 
 @app.get("/api/dashboard")
-def dashboard_data():
-    return database.get_dashboard_data()
+def dashboard_data(device_id: str = Header(None, alias="X-Device-Id")):
+    return database.get_dashboard_data(device_id or "legacy")
 
 
 # ==================== 每日一句和夸奖 ====================
@@ -131,9 +137,11 @@ def today_hot():
 
 @app.post("/api/plans/add")
 async def plans_add(request: Request):
+    device_id = request.headers.get("X-Device-Id", "legacy")
     data = await request.json()
     database.add_plan(
         content=data["content"],
+        device_id=device_id,
         plan_date=data.get("plan_date", ""),
         plan_type=data.get("plan_type", "daily"),
         end_date=data.get("end_date"),
@@ -142,8 +150,8 @@ async def plans_add(request: Request):
 
 
 @app.get("/api/plans")
-def plans_list(plan_date: str = "", plan_type: str = ""):
-    return database.get_plans(plan_date, plan_type)
+def plans_list(plan_date: str = "", plan_type: str = "", device_id: str = Header(None, alias="X-Device-Id")):
+    return database.get_plans(device_id or "legacy", plan_date, plan_type)
 
 
 @app.put("/api/plans/{plan_id}/toggle")
@@ -169,20 +177,21 @@ def plans_delete(plan_id: int):
 
 @app.post("/api/essays/add")
 async def essays_add(request: Request):
+    device_id = request.headers.get("X-Device-Id", "legacy")
     data = await request.json()
-    database.add_essay(data["content"])
+    database.add_essay(data["content"], device_id)
     return {"ok": True}
 
 
 @app.get("/api/essays/today")
-def essays_today():
-    essay = database.get_today_essay()
+def essays_today(device_id: str = Header(None, alias="X-Device-Id")):
+    essay = database.get_today_essay(device_id or "legacy")
     return essay or {"id": None, "content": ""}
 
 
 @app.get("/api/essays")
-def essays_list():
-    return database.get_all_essays()
+def essays_list(device_id: str = Header(None, alias="X-Device-Id")):
+    return database.get_all_essays(device_id or "legacy")
 
 
 @app.put("/api/essays/{essay_id}")
@@ -222,11 +231,13 @@ def get_cat_icons():
 
 @app.post("/api/bills/add")
 async def bills_add(request: Request):
+    device_id = request.headers.get("X-Device-Id", "legacy")
     data = await request.json()
     database.add_bill(
         bill_type=data["type"],
         amount=float(data["amount"]),
         category=data.get("category", "其他"),
+        device_id=device_id,
         note=data.get("note", ""),
         bill_date=data.get("bill_date", ""),
     )
@@ -234,8 +245,8 @@ async def bills_add(request: Request):
 
 
 @app.get("/api/bills")
-def bills_list(month: str = "", date: str = ""):
-    return database.get_bills(month=month, date_filter=date)
+def bills_list(month: str = "", date: str = "", device_id: str = Header(None, alias="X-Device-Id")):
+    return database.get_bills(device_id or "legacy", month=month, date_filter=date)
 
 
 @app.delete("/api/bills/{bill_id}")
@@ -252,8 +263,8 @@ async def bills_update(bill_id: int, request: Request):
 
 
 @app.get("/api/bills/summary")
-def bills_summary(year: str = "", month: str = ""):
-    return database.get_bills_summary(year, month)
+def bills_summary(year: str = "", month: str = "", device_id: str = Header(None, alias="X-Device-Id")):
+    return database.get_bills_summary(device_id or "legacy", year, month)
 
 
 @app.get("/api/bills/stats")

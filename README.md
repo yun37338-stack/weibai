@@ -2,29 +2,38 @@
 
 > 记账 · 计划 · 随笔 — 你的数字生活管家
 
-「味白」是一站式个人工作台应用，帮助你管理日常的开销、计划和随笔。支持 PWA 安装到手机桌面，像原生 App 一样使用。
+「味白」是一站式个人工作台应用。部署一次，手机电脑都能用，**每个设备数据独立隔离**。
 
 ---
 
-## 快速开始
+## 🚀 手机端（推荐：一键部署到云端）
 
-### 1. 安装依赖
+点击下方按钮免费部署，手机直接用，**不需要电脑一直开着**：
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/yun37338-stack/weibai)
+
+部署完成后得到一个链接（如 `https://weibai-xxxx.onrender.com`），手机浏览器打开 → **"添加到主屏幕"** → 桌面出现味白图标。
+
+> **数据隔离**：每个设备首次打开自动生成唯一 ID，A 和 B 的记账数据完全隔离、互不可见。
+
+### 💻 电脑端（本地运行）
 
 ```bash
+# 1. 安装依赖
 pip install -r requirements.txt
-```
 
-### 2. 启动应用
-
-```bash
+# 2. 启动
 python app.py
+
+# 3. 打开浏览器
+# http://localhost:8000
 ```
 
-### 3. 打开浏览器
+> **Windows 用户**：直接下载代码，双击 `启动味白.bat` 一键启动。
 
-访问 **http://localhost:8000**
+### 📱 手机端（局域网连接电脑）
 
----
+手机和电脑连**同一 WiFi**，手机浏览器访问 `http://<电脑IP>:8000` → 添加到主屏幕。
 
 ## 功能介绍
 
@@ -82,43 +91,18 @@ python app.py
 
 ---
 
-## 各平台安装方式
+## 手机端安装（云端部署 - 推荐）
 
-> 每个人自己电脑上运行，数据完全私有，互不可见。
+1. 点击上方的 **Deploy to Render** 按钮，用 GitHub 登录 Render（免费）
+2. 等待 2-3 分钟自动部署完成
+3. 得到一个公网链接 `https://weibai-xxxx.onrender.com`
+4. **手机浏览器打开这个链接**
+5. **Android Chrome**：弹出"添加到主屏幕" → 点击添加
+6. **iOS Safari**：分享按钮 → "添加到主屏幕"
+7. 桌面出现「味白」图标，像原生 App 一样打开
 
-### 💻 Windows 电脑
-
-1. 安装 [Python 3.10+](https://www.python.org/downloads/)（安装时勾选"Add Python to PATH"）
-2. [下载代码](https://github.com/yun37338-stack/weibai/archive/refs/heads/main.zip) 并解压
-3. 双击 `启动味白.bat` → 自动安装依赖并启动
-4. 浏览器自动打开，开始使用
-
-### 💻 Mac 电脑
-
-```bash
-# 下载代码
-git clone https://github.com/yun37338-stack/weibai.git
-cd weibai
-
-# 安装依赖并启动
-pip install -r requirements.txt
-python app.py
-
-# 浏览器打开 http://localhost:8000
-```
-
-### 📱 手机连接电脑（Android / iOS）
-
-手机不需要安装任何 App，通过局域网访问电脑即可：
-
-1. 电脑上启动味白（双击 bat 或运行 `python app.py`）
-2. 手机和电脑连**同一 WiFi**
-3. 查看电脑 IP 地址：
-   - Windows：打开 CMD 输入 `ipconfig`，找 IPv4 地址
-   - Mac：打开终端输入 `ifconfig`，找 `inet` 地址
-4. 手机浏览器打开 `http://<电脑IP>:8000`
-5. 浏览器菜单 → **"添加到主屏幕"** → 桌面出现味白图标
-6. 之后像原生 App 一样使用，支持离线访问
+> 每个设备自动生成唯一 ID，数据完全隔离，A 记账 B 看不到。
+> 已配置 PWA，打开过一次后支持离线访问基础页面。
 
 ---
 
@@ -200,8 +184,9 @@ weibai/
 | 提交 | 说明 |
 |------|------|
 | `c1c1eae` | 初始版：味白个人工作台 |
-| `bae890f` | 账单记账优化：日历视图/图表切换/树状图/PWA支持 |
-| `5283385` | 记账收入优化：收支分类分离/收入专属分类/设置两栏管理 |
+| `bae890f` | 账单记账优化：日历视图/图表切换/树状图/PWA |
+| `5283385` | 记账收入优化：收支分类分离 |
+| `2acd8ad` | 设备隔离：每设备独立数据 + 云端一键部署
 
 ---
 

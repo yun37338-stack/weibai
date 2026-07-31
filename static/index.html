@@ -518,9 +518,23 @@ const CAT_DEFAULTS={'餐饮':'🍜','交通':'🚗','购物':'🛍','娱乐':'�
 const CAT_BG={'餐饮':'#E8F5EC','交通':'#F0F7F4','购物':'#F5FDF8','娱乐':'#EBF5EF','住房':'#E5F2E9','医疗':'#F2E8EB','教育':'#EAF0F5','工资':'#E5F0E9','生活费':'#F2EFF5','兼职':'#F5F1E8','理财':'#E8F0F5','红包':'#F5E8EB','报销':'#F0F5E8','其他':'#F5F5F5'};
 const CHART_COLORS=['#2E8B57','#6DB97A','#8FAF98','#A8D5B0','#5B7A6F','#4A8B6F','#C4DCC8','#3A6B4A','#8BB89A','#4C7A5C','#9DC4A8','#B3D8BF'];
 
+// ==================== 设备隔离：每个设备生成唯一ID ====================
+let DEVICE_ID = localStorage.getItem('wb_device_id');
+if (!DEVICE_ID) {
+  DEVICE_ID = 'wb_' + crypto.randomUUID();
+  localStorage.setItem('wb_device_id', DEVICE_ID);
+}
+
+// 封装 fetch，自动带上设备ID
+async function api(url, opts = {}) {
+  opts.headers = opts.headers || {};
+  opts.headers['X-Device-Id'] = DEVICE_ID;
+  return fetch(url, opts);
+}
+
 async function init(){
   try{
-    const s=await fetch('/api/settings').then(r=>r.json());
+    const s=await api('/api/settings').then(r=>r.json());
     userName=s.user_name||'主人';themeColor=s.theme_color||'#2E8B57';appIcon=s.app_icon||'🌿';
     document.getElementById('setUserName').value=userName;
     document.getElementById('setTheme').value=themeColor;
@@ -538,7 +552,7 @@ async function loadWelcome(){
   document.getElementById('wDay').textContent=n.getDate();
   document.getElementById('wYmd').textContent=n.getFullYear()+'年'+(n.getMonth()+1)+'月'+n.getDate()+'日 星期'+wd[n.getDay()];
   document.getElementById('wGreeting').textContent='嗨，'+userName;
-  try{const c=await fetch('/api/today/compliment').then(r=>r.json());document.getElementById('wCompliment').textContent=c.text;}catch(e){}
+  try{const c=await api('/api/today/compliment').then(r=>r.json());document.getElementById('wCompliment').textContent=c.text;}catch(e){}
 }
 function enterApp(){document.getElementById('welcomePage').style.display='none';const m=document.getElementById('appMain');m.classList.add('show');m.style.display='block';updateTimeGreet();switchTab('dashboard');}
 function updateTimeGreet(){const h=new Date().getHours();let g='下午好';if(h<6)g='夜深了';else if(h<12)g='早上好';else if(h<13)g='中午好';else if(h<18)g='下午好';else g='晚上好';
@@ -581,7 +595,7 @@ function switchYearView(mode){curYearView=mode;document.querySelectorAll('[data-
 // ==================== 仪表盘 ====================
 async function loadDashboard(){
   try{
-    const d=await fetch('/api/dashboard').then(r=>r.json());dashboardData=d;
+    const d=await api('/api/dashboard').then(r=>r.json());dashboardData=d;
     document.getElementById('topExpense').textContent='-¥'+(d.today_expense||0).toFixed(2);
     document.getElementById('topIncome').textContent='+¥'+(d.today_income||0).toFixed(2);
     const dp=document.getElementById('dashPlans');
@@ -606,7 +620,7 @@ function renderPlanItem(p,showToggle){
   return`<div class="plan-item ${p.done?'done':''}">${toggle}<span class="text">${esc(p.content)}</span><span class="plan-date">${ds}</span></div>`;
 }
 
-async function togglePlan(id){await fetch('/api/plans/'+id+'/toggle',{method:'PUT'});loadDashboard();}
+async function togglePlan(id){await api('/api/plans/'+id+'/toggle',{method:'PUT'});loadDashboard();}
 
 function renderHotTopics(topics){
   if(!topics||!topics.length){document.getElementById('hotList').innerHTML='<div class="empty-state">暂无热点</div>';return;}
@@ -620,22 +634,22 @@ function renderHotTopics(topics){
 async function refreshHotTopics(){
   const btn=document.querySelector('.btn-refresh');
   btn.style.transform='rotate(360deg)';
-  try{const d=await fetch('/api/today/hot').then(r=>r.json());renderHotTopics(d);}catch(e){}
+  try{const d=await api('/api/today/hot').then(r=>r.json());renderHotTopics(d);}catch(e){}
   setTimeout(()=>btn.style.transform='',300);
 }
 
 // ==================== 随笔 ====================
 function onEssayInput(){document.getElementById('essaySaveBtn').style.display=document.getElementById('essayText').value.trim()?'inline-flex':'none';}
-async function saveEssay(){const c=document.getElementById('essayText').value.trim();if(!c)return;const e=await fetch('/api/essays/today').then(r=>r.json());
-  if(e&&e.id)await fetch('/api/essays/'+e.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})});
-  else await fetch('/api/essays/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})});
+async function saveEssay(){const c=document.getElementById('essayText').value.trim();if(!c)return;const e=await api('/api/essays/today').then(r=>r.json());
+  if(e&&e.id)await api('/api/essays/'+e.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})});
+  else await api('/api/essays/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})});
   document.getElementById('essaySaveBtn').style.display='none';loadDashboard();}
-async function loadTodayEssay(){const e=await fetch('/api/essays/today').then(r=>r.json());document.getElementById('essayNewText').value=e&&e.content?e.content:'';}
-async function saveNewEssay(){const c=document.getElementById('essayNewText').value.trim();if(!c)return;const e=await fetch('/api/essays/today').then(r=>r.json());
-  if(e&&e.id)await fetch('/api/essays/'+e.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})});
-  else await fetch('/api/essays/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})});
+async function loadTodayEssay(){const e=await api('/api/essays/today').then(r=>r.json());document.getElementById('essayNewText').value=e&&e.content?e.content:'';}
+async function saveNewEssay(){const c=document.getElementById('essayNewText').value.trim();if(!c)return;const e=await api('/api/essays/today').then(r=>r.json());
+  if(e&&e.id)await api('/api/essays/'+e.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})});
+  else await api('/api/essays/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})});
   document.getElementById('essayNewText').value='';loadEssayHistory();loadDashboard();}
-async function loadEssayHistory(){const data=await fetch('/api/essays').then(r=>r.json());const h=document.getElementById('essayHistory');
+async function loadEssayHistory(){const data=await api('/api/essays').then(r=>r.json());const h=document.getElementById('essayHistory');
   if(!data.length){h.innerHTML='<div class="empty-state">还没有随笔</div>';return;}
   h.innerHTML=data.map(e=>`<div class="essay-history-item"><div class="e-date">${e.created_at?.slice(0,16)}</div><div class="e-content">${esc(e.content)}</div></div>`).join('');}
 
@@ -646,23 +660,23 @@ function quickAddWeeklyPlan(){qpType='weekly';document.getElementById('modalTitl
 function quickAddLongtermPlan(){qpType='longterm';document.getElementById('modalTitle').textContent='添加长期计划';document.getElementById('quickPlanContent').value='';document.getElementById('quickPlanModal').classList.add('open');}
 function closeQuickPlan(){document.getElementById('quickPlanModal').classList.remove('open');}
 async function submitQuickPlan(){const c=document.getElementById('quickPlanContent').value.trim();if(!c)return;
-  await fetch('/api/plans/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c,plan_type:qpType})});
+  await api('/api/plans/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c,plan_type:qpType})});
   closeQuickPlan();loadDashboard();if(currentTab==='plans')loadPlansList();}
 
 // ==================== 计划编辑弹窗 ====================
 function openEditPlan(id,content){editPlanId=id;document.getElementById('editPlanContent').value=content;document.getElementById('editPlanModal').classList.add('open');}
 function closeEditPlan(){editPlanId=null;document.getElementById('editPlanModal').classList.remove('open');}
 async function submitEditPlan(){const c=document.getElementById('editPlanContent').value.trim();if(!c||!editPlanId)return;
-  await fetch('/api/plans/'+editPlanId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})});
+  await api('/api/plans/'+editPlanId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})});
   closeEditPlan();loadPlansList();if(currentTab==='dashboard')loadDashboard();}
 
 // ==================== 计划列表 ====================
 async function addPlan(e){e.preventDefault();const c=document.getElementById('planContent').value.trim();if(!c)return;
   const endDate=document.getElementById('planEndDate').value||null;
-  await fetch('/api/plans/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c,plan_type:curPlanType,plan_date:document.getElementById('planDate').value,end_date:endDate})});
+  await api('/api/plans/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c,plan_type:curPlanType,plan_date:document.getElementById('planDate').value,end_date:endDate})});
   document.getElementById('planContent').value='';document.getElementById('planEndDate').value='';loadPlansList();}
 async function loadPlansList(){
-  const d=await fetch('/api/plans?plan_type='+curPlanType).then(r=>r.json());const l=document.getElementById('plansList');
+  const d=await api('/api/plans?plan_type='+curPlanType).then(r=>r.json());const l=document.getElementById('plansList');
   if(!d.length){l.innerHTML='<div class="empty-state">还没有计划</div>';return;}
   const tags={daily:'日',weekly:'周',longterm:'长期'},cls={daily:'tag-daily',weekly:'tag-weekly',longterm:'tag-longterm'};
   l.innerHTML=d.map(p=>{
@@ -672,17 +686,17 @@ async function loadPlansList(){
       <button class="btn-sm danger" onclick="deletePlan(${p.id})">删除</button></div>`;
   }).join('');
 }
-async function togglePlanFromList(id){await fetch('/api/plans/'+id+'/toggle',{method:'PUT'});loadPlansList();}
-async function deletePlan(id){if(!confirm('确认删除？'))return;await fetch('/api/plans/'+id,{method:'DELETE'});loadPlansList();if(currentTab==='dashboard')loadDashboard();}
+async function togglePlanFromList(id){await api('/api/plans/'+id+'/toggle',{method:'PUT'});loadPlansList();}
+async function deletePlan(id){if(!confirm('确认删除？'))return;await api('/api/plans/'+id,{method:'DELETE'});loadPlansList();if(currentTab==='dashboard')loadDashboard();}
 
 // ==================== 分类 ====================
 function allCatNames(type){const def=type==='expense'?EXPENSE_CATS:INCOME_CATS;const custom=(customCategories[type]||[]).map(c=>typeof c==='string'?c:c.name);return [...new Set([...def,...custom])];}
 async function loadCategories(){
   try{
-    const s=await fetch('/api/settings').then(r=>r.json());
+    const s=await api('/api/settings').then(r=>r.json());
     const raw=s.custom_categories;
     if(raw){try{const p=JSON.parse(raw);if(Array.isArray(p)){const names=p.map(x=>typeof x==='string'?x:x.name);customCategories={expense:names.filter(n=>!INCOME_CATS.includes(n)),income:names.filter(n=>INCOME_CATS.includes(n))};}else{customCategories={expense:p.expense||[],income:p.income||[]};}}catch(e){customCategories={expense:[],income:[]};}}
-    const ci=await fetch('/api/settings/cat-icons').then(r=>r.json());customCatIcons=ci||{};
+    const ci=await api('/api/settings/cat-icons').then(r=>r.json());customCatIcons=ci||{};
   }catch(e){customCategories={expense:[],income:[]};}
   renderCatBtns();populateCatSelect();
 }
@@ -738,18 +752,18 @@ function loadCatManage(){
 async function uploadCatIcon(cat){
   const f=document.getElementById('catUpload_'+cat).files[0];if(!f)return;
   const fd=new FormData();fd.append('file',f);fd.append('category',cat);
-  await fetch('/api/settings/cat-icon/upload',{method:'POST',body:fd});await loadCategories();
+  await api('/api/settings/cat-icon/upload',{method:'POST',body:fd});await loadCategories();
 }
 async function deleteCustomCat(type, cat){
   if(!confirm('删除分类「'+cat+'」？'))return;
   customCategories[type]=customCategories[type].filter(c=>(typeof c==='string'?c:c.name)!==cat);
-  await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_categories:JSON.stringify(customCategories)})});
+  await api('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_categories:JSON.stringify(customCategories)})});
   loadCatManage();loadCategories();populateCatSelect();
 }
 async function uploadCatIconForNew(cat){
   const f=document.getElementById('newCatIcon').files[0];if(!f)return;
   const fd=new FormData();fd.append('file',f);fd.append('category',cat);
-  await fetch('/api/settings/cat-icon/upload',{method:'POST',body:fd});
+  await api('/api/settings/cat-icon/upload',{method:'POST',body:fd});
 }
 function showAddCat(){document.getElementById('newCatName').value='';document.getElementById('newCatIcon').value='';document.getElementById('addCatModal').classList.add('open');}
 function closeAddCat(){document.getElementById('addCatModal').classList.remove('open');}
@@ -759,7 +773,7 @@ async function submitAddCat(){
   const exists=allCatNames(type).includes(name);if(exists)return alert('分类已存在');
   customCategories[type].push({name,icon:null});
   await uploadCatIconForNew(name);
-  await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_categories:JSON.stringify(customCategories)})});
+  await api('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_categories:JSON.stringify(customCategories)})});
   closeAddCat();loadCatManage();loadCategories();populateCatSelect();
 }
 
@@ -769,10 +783,10 @@ async function addBill(e){e.preventDefault();
   const amount=parseFloat(document.getElementById('billAmount').value),note=document.getElementById('billNote').value;
   const billDate=document.getElementById('billDate').value;
   if(isNaN(amount)||amount<=0)return;
-  await fetch('/api/bills/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,category,amount,note,bill_date:billDate})});
+  await api('/api/bills/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,category,amount,note,bill_date:billDate})});
   document.getElementById('billAmount').value='';document.getElementById('billNote').value='';document.getElementById('billDate').value='';loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
 async function loadTodayBills(){
-  const b=await fetch('/api/bills').then(r=>r.json());const l=document.getElementById('todayBillList');
+  const b=await api('/api/bills').then(r=>r.json());const l=document.getElementById('todayBillList');
   if(!b.length){l.innerHTML='<div class="empty-state">今天还没有账单</div>';return;}
   l.innerHTML=b.map(b=>{
     const icon=customCatIcons[b.category];const emoji=CAT_DEFAULTS[b.category]||'📌';
@@ -780,8 +794,8 @@ async function loadTodayBills(){
     return`<div class="bill-item"><div class="bill-icon" style="background:${bg}">${icon?`<img src="${icon}" style="width:24px;height:24px;border-radius:4px;object-fit:cover">`:emoji}</div><div class="bill-info"><div class="bill-title">${esc(b.category)}${b.note?' · '+esc(b.note):''}</div><div class="bill-meta">${b.created_at?.slice(11,16)}</div></div><div class="bill-amount ${b.type}">${b.type==='income'?'+':'-'}¥${parseFloat(b.amount).toFixed(2)}<button class="btn-sm primary" style="margin-left:4px" onclick="openEditBill(${b.id},'${b.type}','${esc(b.category)}',${b.amount},'${(b.note||'').replace(/'/g,"\\'")}')">编辑</button><button class="btn-sm danger" style="margin-left:4px" onclick="deleteBill(${b.id})">删除</button></div></div>`;
   }).join('');
 }
-async function deleteBill(id){if(!confirm('确认删除？'))return;await fetch('/api/bills/'+id,{method:'DELETE'});loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
-async function deleteBillFromDetail(id,date){if(!confirm('确认删除此账单？'))return;await fetch('/api/bills/'+id,{method:'DELETE'});loadBillSummary();loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
+async function deleteBill(id){if(!confirm('确认删除？'))return;await api('/api/bills/'+id,{method:'DELETE'});loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
+async function deleteBillFromDetail(id,date){if(!confirm('确认删除此账单？'))return;await api('/api/bills/'+id,{method:'DELETE'});loadBillSummary();loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
 
 let editBillId=null;
 function populateEditCatSelect(){const t=document.getElementById('editBillType').value;document.getElementById('editBillCategory').innerHTML=allCatNames(t).map(c=>`<option>${c}</option>`).join('');}
@@ -796,7 +810,7 @@ async function submitEditBill(){
   const type=document.getElementById('editBillType').value,category=document.getElementById('editBillCategory').value;
   const amount=parseFloat(document.getElementById('editBillAmount').value),note=document.getElementById('editBillNote').value;
   if(isNaN(amount)||amount<=0||!editBillId)return;
-  await fetch('/api/bills/'+editBillId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,category,amount,note})});
+  await api('/api/bills/'+editBillId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,category,amount,note})});
   closeEditBill();loadTodayBills();if(currentTab==='dashboard')loadDashboard();
 }
 // ==================== 总账 ====================
@@ -808,7 +822,7 @@ function initYearSelector(){
 }
 async function loadBillSummary(){
   const year=document.getElementById('sumYear').value,month=document.getElementById('sumMonth').value;
-  const d=await fetch('/api/bills/summary?year='+year+'&month='+month).then(r=>r.json());
+  const d=await api('/api/bills/summary?year='+year+'&month='+month).then(r=>r.json());
   document.getElementById('sumIncome').textContent='¥'+(d.total_income||0).toFixed(2);
   document.getElementById('sumExpense').textContent='¥'+(d.total_expense||0).toFixed(2);
   document.getElementById('sumBalance').textContent='¥'+((d.total_income||0)-(d.total_expense||0)).toFixed(2);
@@ -864,7 +878,7 @@ async function toggleCalDay(el,date){
   document.querySelectorAll('.cal-cell.selected').forEach(c=>c.classList.remove('selected'));
   el.classList.add('selected');
   const parts=date.split('-');
-  const bills=await fetch(`/api/bills?date=${parts[0]}-${parts[1]}-${parts[2]}`).then(r=>r.json());
+  const bills=await api(`/api/bills?date=${parts[0]}-${parts[1]}-${parts[2]}`).then(r=>r.json());
   panel.innerHTML=bills.length?`<div class="cal-detail-title">${date.slice(5)} 账单明细</div>`+bills.map(b=>{
     const icon=customCatIcons[b.category];const emoji=CAT_DEFAULTS[b.category]||'📌';
     const bg=CAT_BG[b.category]||'#F5F5F5';
@@ -874,7 +888,7 @@ async function toggleCalDay(el,date){
   panel.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-async function deleteCalBill(id,date){if(!confirm('确认删除此账单？'))return;await fetch('/api/bills/'+id,{method:'DELETE'});loadBillSummary();loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
+async function deleteCalBill(id,date){if(!confirm('确认删除此账单？'))return;await api('/api/bills/'+id,{method:'DELETE'});loadBillSummary();loadTodayBills();if(currentTab==='dashboard')loadDashboard();}
 function hideCharts(){document.getElementById('billChartsArea').style.display='none';document.getElementById('billTrendArea').style.display='none';}
 function hideMonthlyChart(){}
 
@@ -1062,7 +1076,7 @@ function drawSumTree(entries){
 function initYearSelect(){const y=new Date().getFullYear(),s=document.getElementById('yearYear');s.innerHTML='';for(let i=y;i>=y-4;i--)s.innerHTML+=`<option value="${i}">${i}年</option>`;s.value=y;loadYearSummary();}
 async function loadYearSummary(){
   const year=document.getElementById('yearYear').value;
-  const d=await fetch('/api/bills/summary?year='+year+'&month=').then(r=>r.json());
+  const d=await api('/api/bills/summary?year='+year+'&month=').then(r=>r.json());
   document.getElementById('yrIncome').textContent='¥'+(d.total_income||0).toFixed(2);
   document.getElementById('yrExpense').textContent='¥'+(d.total_expense||0).toFixed(2);
   document.getElementById('yrBalance').textContent='¥'+((d.total_income||0)-(d.total_expense||0)).toFixed(2);
@@ -1171,7 +1185,7 @@ function drawYearPie(totalInc,totalExp){
 async function saveSettings(){
   userName=document.getElementById('setUserName').value||'主人';
   themeColor=document.getElementById('setTheme').value||'#2E8B57';
-  await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_name:userName,theme_color:themeColor,app_icon:appIcon,custom_categories:JSON.stringify(customCategories)})});
+  await api('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_name:userName,theme_color:themeColor,app_icon:appIcon,custom_categories:JSON.stringify(customCategories)})});
   updateThemeColor(themeColor);loadWelcome();alert('设置已保存');
 }
 function updateThemeColor(c){
@@ -1185,7 +1199,7 @@ function updateThemeColor(c){
 async function uploadIcon(){
   const f=document.getElementById('iconUpload').files[0];if(!f)return;
   const fd=new FormData();fd.append('file',f);
-  const r=await fetch('/api/upload-icon',{method:'POST',body:fd}).then(r=>r.json());
+  const r=await api('/api/upload-icon',{method:'POST',body:fd}).then(r=>r.json());
   if(r.url){appIcon=r.url;applyIcon(r.url);}
 }
 

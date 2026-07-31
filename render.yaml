@@ -1,0 +1,10 @@
+# Render Cloud 一键部署配置
+# 点击 https://render.com/deploy?repo=https://github.com/yun37338-stack/weibai 即可部署
+services:
+  - type: web
+    name: weibai
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    plan: free
+    healthCheckPath: /

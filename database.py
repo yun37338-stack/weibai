@@ -33,6 +33,7 @@ def init_db():
         -- 计划表
         CREATE TABLE IF NOT EXISTS plans (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL DEFAULT 'legacy',
             content TEXT NOT NULL,
             plan_date TEXT NOT NULL DEFAULT (date('now','localtime')),
             end_date TEXT DEFAULT NULL,
@@ -44,6 +45,7 @@ def init_db():
         -- 随笔表
         CREATE TABLE IF NOT EXISTS essays (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL DEFAULT 'legacy',
             content TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
         );
@@ -51,6 +53,7 @@ def init_db():
         -- 记账表
         CREATE TABLE IF NOT EXISTS bills (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL DEFAULT 'legacy',
             type TEXT NOT NULL CHECK(type IN ('expense', 'income')),
             amount REAL NOT NULL,
             category TEXT NOT NULL DEFAULT '其他',
@@ -82,6 +85,8 @@ def init_db():
     """)
     # 迁移：旧的 monthly → longterm，weekly 保持不变，确保列存在
     _migrate_plans(conn)
+    # 迁移：添加 device_id 列
+    _migrate_device_id(conn)
     # 默认设置
     conn.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('user_name','主人')")
     conn.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('theme_color','#2E8B57')")
@@ -99,6 +104,15 @@ def _migrate_plans(conn):
         conn.execute("ALTER TABLE plans ADD COLUMN end_date TEXT DEFAULT NULL")
     except:
         pass
+
+
+def _migrate_device_id(conn):
+    """为旧表添加 device_id 列"""
+    for t in ['plans', 'essays', 'bills']:
+        try:
+            conn.execute(f"ALTER TABLE {t} ADD COLUMN device_id TEXT NOT NULL DEFAULT 'legacy'")
+        except:
+            pass
 
 
 # ==================== 设置 ====================
@@ -379,22 +393,22 @@ def _fetch_weibo_realtime():
 
 
 # ==================== 计划操作 ====================
-def add_plan(content: str, plan_date: str = "", plan_type: str = "daily", end_date: str = None):
+def add_plan(content: str, device_id: str = "legacy", plan_date: str = "", plan_type: str = "daily", end_date: str = None):
     conn = get_db()
     if not plan_date:
         plan_date = date.today().isoformat()
     conn.execute(
-        "INSERT INTO plans (content, plan_date, plan_type, end_date) VALUES (?,?,?,?)",
-        (content, plan_date, plan_type, end_date)
+        "INSERT INTO plans (device_id, content, plan_date, plan_type, end_date) VALUES (?,?,?,?,?)",
+        (device_id, content, plan_date, plan_type, end_date)
     )
     conn.commit()
     conn.close()
 
 
-def get_plans(plan_date: str = "", plan_type: str = ""):
+def get_plans(device_id: str = "legacy", plan_date: str = "", plan_type: str = ""):
     conn = get_db()
-    query = "SELECT * FROM plans WHERE 1=1"
-    params = []
+    query = "SELECT * FROM plans WHERE device_id=?"
+    params = [device_id]
     if plan_date:
         query += " AND plan_date=?"
         params.append(plan_date)
@@ -432,19 +446,19 @@ def delete_plan(plan_id: int):
 
 
 # ==================== 随笔操作 ====================
-def add_essay(content: str):
+def add_essay(content: str, device_id: str = "legacy"):
     conn = get_db()
-    conn.execute("INSERT INTO essays (content) VALUES (?)", (content,))
+    conn.execute("INSERT INTO essays (device_id, content) VALUES (?,?)", (device_id, content))
     conn.commit()
     conn.close()
 
 
-def get_today_essay():
+def get_today_essay(device_id: str = "legacy"):
     conn = get_db()
     today_str = date.today().isoformat()
     row = conn.execute(
-        "SELECT * FROM essays WHERE date(created_at)=? ORDER BY created_at DESC LIMIT 1",
-        (today_str,)
+        "SELECT * FROM essays WHERE device_id=? AND date(created_at)=? ORDER BY created_at DESC LIMIT 1",
+        (device_id, today_str)
     ).fetchone()
     conn.close()
     return dict(row) if row else None
@@ -457,48 +471,48 @@ def update_essay(essay_id: int, content: str):
     conn.close()
 
 
-def get_all_essays(limit: int = 50):
+def get_all_essays(device_id: str = "legacy", limit: int = 50):
     """获取所有随笔，按时间倒序"""
     conn = get_db()
-    rows = conn.execute("SELECT * FROM essays ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+    rows = conn.execute("SELECT * FROM essays WHERE device_id=? ORDER BY created_at DESC LIMIT ?", (device_id, limit)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
 # ==================== 记账操作（保留） ====================
-def add_bill(bill_type: str, amount: float, category: str, note: str = "", image_path: str = "", bill_date: str = ""):
+def add_bill(bill_type: str, amount: float, category: str, device_id: str = "legacy", note: str = "", image_path: str = "", bill_date: str = ""):
     conn = get_db()
     if bill_date:
         conn.execute(
-            "INSERT INTO bills (type, amount, category, note, image_path, created_at) VALUES (?,?,?,?,?,?)",
-            (bill_type, amount, category, note, image_path, bill_date + " 12:00:00")
+            "INSERT INTO bills (device_id, type, amount, category, note, image_path, created_at) VALUES (?,?,?,?,?,?,?)",
+            (device_id, bill_type, amount, category, note, image_path, bill_date + " 12:00:00")
         )
     else:
         conn.execute(
-            "INSERT INTO bills (type, amount, category, note, image_path) VALUES (?,?,?,?,?)",
-            (bill_type, amount, category, note, image_path)
+            "INSERT INTO bills (device_id, type, amount, category, note, image_path) VALUES (?,?,?,?,?,?)",
+            (device_id, bill_type, amount, category, note, image_path)
         )
     conn.commit()
     conn.close()
 
 
-def get_bills(month: str = "", date_filter: str = ""):
+def get_bills(device_id: str = "legacy", month: str = "", date_filter: str = ""):
     conn = get_db()
     if month:
         rows = conn.execute(
-            "SELECT * FROM bills WHERE strftime('%Y-%m', created_at)=? ORDER BY created_at DESC",
-            (month,)
+            "SELECT * FROM bills WHERE device_id=? AND strftime('%Y-%m', created_at)=? ORDER BY created_at DESC",
+            (device_id, month)
         ).fetchall()
     elif date_filter:
         rows = conn.execute(
-            "SELECT * FROM bills WHERE date(created_at)=? ORDER BY created_at DESC",
-            (date_filter,)
+            "SELECT * FROM bills WHERE device_id=? AND date(created_at)=? ORDER BY created_at DESC",
+            (device_id, date_filter)
         ).fetchall()
     else:
         today_str = date.today().isoformat()
         rows = conn.execute(
-            "SELECT * FROM bills WHERE date(created_at)=? ORDER BY created_at DESC",
-            (today_str,)
+            "SELECT * FROM bills WHERE device_id=? AND date(created_at)=? ORDER BY created_at DESC",
+            (device_id, today_str)
         ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -518,7 +532,7 @@ def update_bill(bill_id: int, bill_type: str, category: str, amount: float, note
     conn.close()
 
 
-def get_bills_summary(year: str = "", month: str = ""):
+def get_bills_summary(device_id: str = "legacy", year: str = "", month: str = ""):
     """总账/年度总账：前端统一数据格式"""
     conn = get_db()
     total_income = 0
@@ -530,16 +544,16 @@ def get_bills_summary(year: str = "", month: str = ""):
         # 选具体月：按天汇总 + 每天账单明细
         ym = f"{year}-{month}"
         total_income = conn.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='income' AND strftime('%Y-%m', created_at)=?", (ym,)
+            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE device_id=? AND type='income' AND strftime('%Y-%m', created_at)=?", (device_id, ym)
         ).fetchone()[0]
         total_expense = conn.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='expense' AND strftime('%Y-%m', created_at)=?", (ym,)
+            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE device_id=? AND type='expense' AND strftime('%Y-%m', created_at)=?", (device_id, ym)
         ).fetchone()[0]
 
         day_rows = conn.execute("""
             SELECT date(created_at) as d, type, SUM(amount) as total FROM bills
-            WHERE strftime('%Y-%m', created_at)=? GROUP BY d, type ORDER BY d
-        """, (ym,)).fetchall()
+            WHERE device_id=? AND strftime('%Y-%m', created_at)=? GROUP BY d, type ORDER BY d
+        """, (device_id, ym)).fetchall()
 
         # 按天整理
         day_map = {}
@@ -560,7 +574,7 @@ def get_bills_summary(year: str = "", month: str = ""):
                 day = {"date": ds, "expense": 0, "income": 0}
             # 加载当天账单列表
             bill_rows = conn.execute(
-                "SELECT * FROM bills WHERE date(created_at)=? ORDER BY created_at DESC", (ds,)
+                "SELECT * FROM bills WHERE device_id=? AND date(created_at)=? ORDER BY created_at DESC", (device_id, ds)
             ).fetchall()
             day["bills"] = [dict(r) for r in bill_rows]
             days.append(day)
@@ -568,16 +582,16 @@ def get_bills_summary(year: str = "", month: str = ""):
     elif year:
         # 选全年：按月汇总
         total_income = conn.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='income' AND strftime('%Y', created_at)=?", (year,)
+            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE device_id=? AND type='income' AND strftime('%Y', created_at)=?", (device_id, year)
         ).fetchone()[0]
         total_expense = conn.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='expense' AND strftime('%Y', created_at)=?", (year,)
+            "SELECT COALESCE(SUM(amount),0) FROM bills WHERE device_id=? AND type='expense' AND strftime('%Y', created_at)=?", (device_id, year)
         ).fetchone()[0]
 
         mon_rows = conn.execute("""
             SELECT strftime('%m', created_at) as m, type, SUM(amount) as total FROM bills
-            WHERE strftime('%Y', created_at)=? GROUP BY m, type ORDER BY m
-        """, (year,)).fetchall()
+            WHERE device_id=? AND strftime('%Y', created_at)=? GROUP BY m, type ORDER BY m
+        """, (device_id, year)).fetchall()
 
         mon_map = {}
         for r in mon_rows:
@@ -652,30 +666,30 @@ def get_day_bills(date_str: str):
 
 
 # ==================== 首页汇总 ====================
-def get_dashboard_data():
+def get_dashboard_data(device_id: str = "legacy"):
     today_str = date.today().isoformat()
     conn = get_db()
 
-    today_income = conn.execute("SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='income' AND date(created_at)=?", (today_str,)).fetchone()[0]
-    today_expense = conn.execute("SELECT COALESCE(SUM(amount),0) FROM bills WHERE type='expense' AND date(created_at)=?", (today_str,)).fetchone()[0]
+    today_income = conn.execute("SELECT COALESCE(SUM(amount),0) FROM bills WHERE device_id=? AND type='income' AND date(created_at)=?", (device_id, today_str)).fetchone()[0]
+    today_expense = conn.execute("SELECT COALESCE(SUM(amount),0) FROM bills WHERE device_id=? AND type='expense' AND date(created_at)=?", (device_id, today_str)).fetchone()[0]
 
     today_plans = conn.execute("""
-        SELECT * FROM plans WHERE plan_type='daily' 
+        SELECT * FROM plans WHERE device_id=? AND plan_type='daily' 
         AND (plan_date=? OR (end_date IS NOT NULL AND plan_date <= ? AND end_date >= ?))
         ORDER BY done ASC, created_at DESC
-    """, (today_str, today_str, today_str)).fetchall()
+    """, (device_id, today_str, today_str, today_str)).fetchall()
 
-    longterm_plans = conn.execute("SELECT * FROM plans WHERE plan_type='longterm' ORDER BY done ASC, created_at DESC").fetchall()
+    longterm_plans = conn.execute("SELECT * FROM plans WHERE device_id=? AND plan_type='longterm' ORDER BY done ASC, created_at DESC", (device_id,)).fetchall()
 
     # 本周周计划
     weekly_plans = conn.execute("""
-        SELECT * FROM plans WHERE plan_type='weekly' 
+        SELECT * FROM plans WHERE device_id=? AND plan_type='weekly' 
         AND plan_date >= date('now','localtime','weekday 0','-6 days')
         AND plan_date <= date('now','localtime','weekday 0','+6 days')
         ORDER BY plan_date ASC, done ASC
-    """).fetchall()
+    """, (device_id,)).fetchall()
 
-    today_essay = conn.execute("SELECT * FROM essays WHERE date(created_at)=? ORDER BY created_at DESC LIMIT 1", (today_str,)).fetchone()
+    today_essay = conn.execute("SELECT * FROM essays WHERE device_id=? AND date(created_at)=? ORDER BY created_at DESC LIMIT 1", (device_id, today_str)).fetchone()
 
     conn.close()
 
