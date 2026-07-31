@@ -25,9 +25,18 @@ def get_db():
 def init_db():
     conn = get_db()
     conn.executescript("""
+        -- 旧 settings 表（保留兼容）
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL DEFAULT ''
+        );
+
+        -- 新版：按设备隔离的 settings 表
+        CREATE TABLE IF NOT EXISTS device_settings (
+            key TEXT NOT NULL,
+            device_id TEXT NOT NULL DEFAULT 'legacy',
+            value TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (key, device_id)
         );
 
         -- 计划表
@@ -87,9 +96,12 @@ def init_db():
     _migrate_plans(conn)
     # 迁移：添加 device_id 列
     _migrate_device_id(conn)
-    # 默认设置
-    conn.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('user_name','主人')")
-    conn.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('theme_color','#2E8B57')")
+    # 迁移：将旧 settings 表数据复制到 device_settings（device_id='legacy'）
+    _migrate_device_settings(conn)
+    # 默认设置（写入 legacy 设备，新设备会在首次读写时自动创建）
+    conn.execute("INSERT OR IGNORE INTO device_settings(key,device_id,value) VALUES('user_name','legacy','主人')")
+    conn.execute("INSERT OR IGNORE INTO device_settings(key,device_id,value) VALUES('theme_color','legacy','#2E8B57')")
+    conn.execute("INSERT OR IGNORE INTO device_settings(key,device_id,value) VALUES('device_name','legacy','')")
     conn.commit()
     conn.close()
 
@@ -115,19 +127,68 @@ def _migrate_device_id(conn):
             pass
 
 
-# ==================== 设置 ====================
-def get_setting(key: str):
+def _migrate_device_settings(conn):
+    """将旧 settings 表数据迁移到 device_settings（device_id='legacy'）"""
+    try:
+        old = conn.execute("SELECT key, value FROM settings").fetchall()
+        for row in old:
+            conn.execute(
+                "INSERT OR IGNORE INTO device_settings(key, device_id, value) VALUES(?, 'legacy', ?)",
+                (row["key"], row["value"])
+            )
+    except:
+        pass
+
+
+# ==================== 设置（设备隔离版） ====================
+def get_setting(key: str, device_id: str = "legacy"):
     conn = get_db()
-    row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    row = conn.execute(
+        "SELECT value FROM device_settings WHERE key=? AND device_id=?", (key, device_id)
+    ).fetchone()
+    if row:
+        conn.close()
+        return row["value"]
+    # fallback to legacy (global default)
+    row2 = conn.execute(
+        "SELECT value FROM device_settings WHERE key=? AND device_id='legacy'", (key,)
+    ).fetchone()
+    if row2:
+        conn.close()
+        return row2["value"]
+    # fallback to very old table
+    row3 = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
     conn.close()
-    return row["value"] if row else ""
+    return row3["value"] if row3 else ""
 
 
-def update_setting(key: str, value: str):
+def update_setting(key: str, value: str, device_id: str = "legacy"):
     conn = get_db()
-    conn.execute("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)", (key, value))
+    conn.execute(
+        "INSERT OR REPLACE INTO device_settings(key, device_id, value) VALUES(?,?,?)",
+        (key, device_id, value)
+    )
     conn.commit()
     conn.close()
+
+
+def get_all_settings(device_id: str):
+    """获取某设备的所有设置（含回退到 legacy）"""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT key, value FROM device_settings WHERE device_id=?", (device_id,)
+    ).fetchall()
+    result = {row["key"]: row["value"] for row in rows}
+    # 对于该设备没设置过的 key，回退到 legacy 默认值
+    for key in ['user_name', 'theme_color', 'app_icon', 'device_name']:
+        if key not in result:
+            legacy = conn.execute(
+                "SELECT value FROM device_settings WHERE key=? AND device_id='legacy'", (key,)
+            ).fetchone()
+            if legacy:
+                result[key] = legacy["value"]
+    conn.close()
+    return result
 
 
 # ==================== 夸夸语录（365天不重复） ====================

@@ -52,31 +52,44 @@ def favicon():
     return FileResponse("static/favicon.png")
 
 
-# ==================== 设置 ====================
+# ==================== 设置（设备隔离） ====================
 
 @app.get("/api/settings")
-def get_settings():
+def get_settings(device_id: str = Header(None, alias="X-Device-Id")):
+    did = device_id or "legacy"
     return {
-        "user_name": database.get_setting("user_name"),
-        "theme_color": database.get_setting("theme_color"),
-        "app_icon": database.get_setting("app_icon"),
-        "custom_categories": database.get_setting("custom_categories"),
+        "user_name": database.get_setting("user_name", did),
+        "theme_color": database.get_setting("theme_color", did),
+        "app_icon": database.get_setting("app_icon", did),
+        "custom_categories": database.get_setting("custom_categories", did),
+        "device_name": database.get_setting("device_name", did),
     }
 
 
 @app.put("/api/settings")
 async def update_settings_full(request: Request):
+    device_id = request.headers.get("X-Device-Id", "legacy")
     data = await request.json()
     for key, value in data.items():
-        database.update_setting(key, str(value) if value else "")
+        database.update_setting(key, str(value) if value else "", device_id)
     return {"ok": True}
 
 
 @app.get("/api/settings/cat-icons")
-def get_cat_icons():
+def get_cat_icons(device_id: str = Header(None, alias="X-Device-Id")):
+    """分类图标也按设备隔离"""
+    did = device_id or "legacy"
     result = {}
     conn = database.get_db()
-    rows = conn.execute("SELECT key, value FROM settings WHERE key LIKE 'cat_icon_%'").fetchall()
+    rows = conn.execute(
+        "SELECT key, value FROM device_settings WHERE key LIKE 'cat_icon_%' AND device_id=?",
+        (did,)
+    ).fetchall()
+    # fallback to legacy
+    if not rows:
+        rows = conn.execute(
+            "SELECT key, value FROM device_settings WHERE key LIKE 'cat_icon_%' AND device_id='legacy'"
+        ).fetchall()
     conn.close()
     for row in rows:
         result[row["key"].replace("cat_icon_", "")] = row["value"]
@@ -84,27 +97,30 @@ def get_cat_icons():
 
 
 @app.post("/api/settings/cat-icon/upload")
-async def upload_cat_icon(image: UploadFile = File(...), category: str = Form(...)):
+async def upload_cat_icon(request: Request, image: UploadFile = File(...), category: str = Form(...)):
+    device_id = request.headers.get("X-Device-Id", "legacy")
     ext = os.path.splitext(image.filename)[1] or ".png"
     filename = f"cat_{category}_{uuid.uuid4().hex}{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
     with open(filepath, "wb") as f:
         f.write(await image.read())
     icon_url = f"/static/uploads/{filename}"
-    database.update_setting(f"cat_icon_{category}", icon_url)
+    database.update_setting(f"cat_icon_{category}", icon_url, device_id)
     return {"ok": True, "url": icon_url}
 
 
 @app.post("/api/settings/upload-icon")
-async def upload_icon(image: UploadFile = File(...)):
-    """上传自定义应用图标"""
+@app.post("/api/upload-icon")
+async def upload_icon(request: Request, image: UploadFile = File(...)):
+    """上传自定义应用图标（设备隔离）"""
+    device_id = request.headers.get("X-Device-Id", "legacy")
     ext = os.path.splitext(image.filename)[1] or ".png"
     filename = f"app_icon_{uuid.uuid4().hex}{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
     with open(filepath, "wb") as f:
         f.write(await image.read())
     icon_url = f"/static/uploads/{filename}"
-    database.update_setting("app_icon", icon_url)
+    database.update_setting("app_icon", icon_url, device_id)
     return {"ok": True, "url": icon_url}
 
 
@@ -199,32 +215,6 @@ async def essays_update(essay_id: int, request: Request):
     data = await request.json()
     database.update_essay(essay_id, data["content"])
     return {"ok": True}
-
-
-# ==================== 分类图标 ====================
-
-@app.post("/api/settings/upload-cat-icon")
-async def upload_cat_icon(category: str = Form(...), image: UploadFile = File(...)):
-    """为某个分类上传自定义图标"""
-    ext = os.path.splitext(image.filename)[1] or ".png"
-    filename = f"cat_{category}_{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
-    with open(filepath, "wb") as f:
-        f.write(await image.read())
-    icon_url = f"/static/uploads/{filename}"
-    database.update_setting(f"cat_icon_{category}", icon_url)
-    return {"ok": True, "url": icon_url, "category": category}
-
-
-@app.get("/api/settings/cat-icons")
-def get_cat_icons():
-    cats = ["餐饮", "交通", "购物", "娱乐", "住房", "医疗", "教育", "其他"]
-    result = {}
-    for c in cats:
-        icon = database.get_setting(f"cat_icon_{c}")
-        if icon:
-            result[c] = icon
-    return result
 
 
 # ==================== 记账 API ====================

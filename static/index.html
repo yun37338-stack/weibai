@@ -426,6 +426,23 @@ svg.icon-lg{width:28px;height:28px}
 
   <!-- ====== 设置 ====== -->
   <div class="page-content" id="tab-settings" style="display:none">
+    <!-- 设备标识 -->
+    <div class="card" style="margin-bottom:20px;border-color:var(--c-primary-mid)">
+      <div class="card-title" style="margin-bottom:10px">🔐 设备标识</div>
+      <div style="font-size:12px;color:var(--c-text-secondary);margin-bottom:12px">
+        每个人设置不同的标识，数据互不干扰。修改后页面将自动刷新。
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <input type="text" id="setDeviceId" placeholder="输入你的名字或ID..."
+          style="flex:1;padding:10px 14px;border:1.5px solid var(--c-primary-mid);border-radius:var(--radius-sm);font-size:14px;outline:none;background:var(--c-bg);font-family:monospace">
+        <button class="btn-sm primary" onclick="regenerateDeviceId()" style="white-space:nowrap">🔄 随机生成</button>
+      </div>
+      <div style="font-size:11px;color:var(--c-text-muted)">
+        💡 提示：你和朋友各设一个不同的名字（如「小明」「小红」），数据就完全隔离了。
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:14px" onclick="applyDeviceId()">应用设备标识</button>
+    </div>
+
     <div class="card" style="margin-bottom:20px"><div class="card-title" style="margin-bottom:6px">个性化</div>
       <div class="setting-item">
         <div><div class="s-label">对我的称呼</div><div class="s-hint">进入应用时如何称呼你</div></div>
@@ -538,6 +555,7 @@ async function init(){
     userName=s.user_name||'主人';themeColor=s.theme_color||'#2E8B57';appIcon=s.app_icon||'🌿';
     document.getElementById('setUserName').value=userName;
     document.getElementById('setTheme').value=themeColor;
+    document.getElementById('setDeviceId').value=DEVICE_ID;
     updateThemeColor(themeColor);applyIcon(appIcon);
   }catch(e){}
   await loadWelcome();await loadDashboard();loadCategories();
@@ -1182,6 +1200,17 @@ function drawYearPie(totalInc,totalExp){
 }
 
 // ==================== 设置 ====================
+function regenerateDeviceId(){
+  document.getElementById('setDeviceId').value = 'wb_' + crypto.randomUUID();
+}
+function applyDeviceId(){
+  const newId = document.getElementById('setDeviceId').value.trim();
+  if(!newId){ alert('请输入一个设备标识'); return; }
+  localStorage.setItem('wb_device_id', newId);
+  DEVICE_ID = newId;
+  alert('设备标识已更新为：' + newId + '\n\n页面将刷新以加载你的专属数据。');
+  location.reload();
+}
 async function saveSettings(){
   userName=document.getElementById('setUserName').value||'主人';
   themeColor=document.getElementById('setTheme').value||'#2E8B57';
